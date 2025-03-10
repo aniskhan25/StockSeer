@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Stock Market Comparison</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #1976D2;
+            text-align: center;
+            margin: 20px 0;
+            font-weight: 500;
+            font-size: 28px;
+        }
+        .control-panel {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        .form-section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .ticker-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .ticker-option {
+            display: flex;
+            align-items: center;
+        }
+        .ticker-checkbox {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 0;
+            width: 0;
+        }
+        .ticker-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #e9ecef;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        .ticker-checkbox:checked + .ticker-label {
+            background-color: #1976D2;
+            color: white;
+        }
+        .ticker-checkbox:focus + .ticker-label {
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+        }
+        label {
+            font-weight: 500;
+            margin-right: 10px;
+            color: #555;
+        }
+        input[type="number"] {
+            width: 100px;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            font-size: 15px;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #1976D2;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2);
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 15px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .btn-primary {
+            background-color: #1976D2;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #1565C0;
+        }
+        .chart-container {
+            background-color: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+        }
+        .app-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding: 20px 0;
+            border-top: 1px solid #eee;
+        }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+        .nav-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #1976D2;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+        .nav-link:hover {
+            background-color: #1565C0;
+        }
+        .selected-tickers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .selected-ticker-badge {
+            background-color: #1976D2;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-weight: 500;
+        }
+        .info-panel {
+            background-color: #e8f5e9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-left: 4px solid #4caf50;
+        }
+        .info-title {
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Market Comparison</h1>
+        
+        {% if selected_tickers %}
+        <div class="selected-tickers">
+            {% for ticker in selected_tickers %}
+                <div class="selected-ticker-badge">{{ ticker }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="control-panel">
+            <form method="get" action="/plot">
+                <div class="form-section">
+                    <div class="section-title">Select Stocks to Compare</div>
+                    <div class="ticker-checkboxes">
+                        {% for ticker in tickers %}
+                            <div class="ticker-option">
+                                <input type="checkbox" class="ticker-checkbox" id="ticker-{{ ticker }}" 
+                                       name="tickers" value="{{ ticker }}"
+                                       {% if ticker in selected_tickers %}checked{% endif %}>
+                                <label class="ticker-label" for="ticker-{{ ticker }}">{{ ticker }}</label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <div class="section-title">Chart Configuration</div>
+                    <div class="form-row">
+                        <div>
+                            <label for="days">Time Period (days):</label>
+                            <input type="number" id="days" name="days" min="10" max="250" 
+                                  value="{{ request.args.get('days', 30) }}" step="5">
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">Update Comparison</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div class="info-panel">
+            <div class="info-title">About This Comparison</div>
+            <p>This view allows you to compare the price movement and technical indicators across multiple stocks. 
+               Each chart displays the stock's price candlesticks, {{ system.ema_short }}/{{ system.ema_long }} EMAs, 
+               and buy/sell signals. The plots share the same timeframe to make comparison easier.</p>
+        </div>
+        
+        <div class="chart-container">
+            <!-- Embed the Plotly chart -->
+            {{ plot_div|safe }}
+        </div>
+        
+        <div class="app-footer">
+            <div class="nav-links">
+                <a href="/" class="nav-link">Back to Dashboard</a>
+                <a href="/plot_single" class="nav-link">Single Stock View</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Signals | Trading Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --color-primary: #2563eb;
+            --color-primary-dark: #1e40af;
+            --color-success: #059669;
+            --color-success-light: #d1fae5;
+            --color-danger: #e11d48;
+            --color-danger-light: #ffe4e6;
+            --color-background: #f8fafc;
+            --color-card: #ffffff;
+            --color-text: #0f172a;
+            --color-text-secondary: #64748b;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+            --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --border-radius: 8px;
+            --transition-ease: all 0.3s ease;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            padding: 2rem 0;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--color-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .logo svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+        
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, var(--color-primary), #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+        
+        h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        h2 svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--color-primary);
+        }
+        
+        .ticker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 2rem;
+        }
+        
+        .ticker-card {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--color-card);
+            color: var(--color-primary);
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transition: var(--transition-ease);
+            text-align: center;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .ticker-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow-hover);
+            background-color: var(--color-primary);
+            color: white;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2.5rem;
+        }
+        
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            background-color: var(--color-card);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition-ease);
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--card-shadow-hover);
+        }
+        
+        .stat-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--color-text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.75rem;
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-top: auto;
+        }
+        
+        .stat-change {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        
+        .buy {
+            color: var(--color-success);
+        }
+        
+        .sell {
+            color: var(--color-danger);
+        }
+        
+        .card {
+            background-color: var(--color-card);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 2rem;
+            border: 1px solid rgba(0,0,0,0.03);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        
+        th {
+            text-align: left;
+            padding: 1rem;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            vertical-align: middle;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background-color: rgba(0,0,0,0.01);
+        }
+        
+        .ticker-cell {
+            font-weight: 600;
+        }
+        
+        .signal-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 50px;
+            min-width: 70px;
+        }
+        
+        .signal-buy {
+            background-color: var(--color-success-light);
+            color: var(--color-success);
+        }
+        
+        .signal-sell {
+            background-color: var(--color-danger-light);
+            color: var(--color-danger);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background-color: var(--color-primary);
+            color: white;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: var(--border-radius);
+            text-decoration: none;
+            transition: var(--transition-ease);
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+        }
+        
+        .btn:hover {
+            background-color: var(--color-primary-dark);
+            transform: translateY(-1px);
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            color: var(--color-primary);
+            border: 1px solid var(--color-primary);
+            box-shadow: none;
+        }
+        
+        .btn-outline:hover {
+            background-color: var(--color-primary);
+            color: white;
+        }
+        
+        .btn-sm {
+            font-size: 0.8rem;
+            padding: 0.35rem 0.75rem;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1rem;
+            text-align: center;
+        }
+        
+        .empty-state svg {
+            width: 60px;
+            height: 60px;
+            fill: var(--color-text-secondary);
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+        
+        .empty-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--color-text);
+        }
+        
+        .empty-description {
+            color: var(--color-text-secondary);
+            max-width: 400px;
+            font-size: 0.95rem;
+        }
+        
+        .footer {
+            display: flex;
+            justify-content: center;
+            margin: 2rem 0;
+            gap: 1rem;
+        }
+        
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 1.5rem;
+        }
+        
+        .flash-message {
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .flash-message.success {
+            background-color: #d1fae5;
+            color: #059669;
+            border-left: 4px solid #059669;
+        }
+        
+        .flash-message.error {
+            background-color: #ffe4e6;
+            color: #e11d48;
+            border-left: 4px solid #e11d48;
+        }
+        
+        .flash-message.info {
+            background-color: #e0f2fe;
+            color: #0284c7;
+            border-left: 4px solid #0284c7;
+        }
+        
+        /* Settings Form */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .settings-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .settings-group label {
+            font-weight: 500;
+            color: var(--color-text);
+            font-size: 0.9rem;
+        }
+        
+        .settings-group input,
+        .settings-group select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+            background-color: white;
+        }
+        
+        .input-hint {
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+        }
+        
+        .settings-actions {
+            margin-top: 1rem;
+        }
+        
+        /* Watchlist Management */
+        .watchlist-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+        
+        .add-ticker-form {
+            display: flex;
+            gap: 0.5rem;
+            flex: 1;
+        }
+        
+        .add-ticker-form input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+        }
+        
+        .current-watchlist h3 {
+            font-size: 1rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.75rem;
+        }
+        
+        .watchlist-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+        
+        .watchlist-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f8fafc;
+            padding: 0.75rem 1rem;
+            border-radius: var(--border-radius);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .ticker-name {
+            font-weight: 600;
+            color: var(--color-primary);
+        }
+        
+        .watchlist-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-danger {
+            background-color: var(--color-danger);
+        }
+        
+        .btn-danger:hover {
+            background-color: #be123c;
+        }
+        
+        .btn-icon {
+            padding: 0.4rem;
+            line-height: 0;
+            border-radius: 50%;
+            min-width: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            table {
+                font-size: 0.85rem;
+            }
+            
+            td, th {
+                padding: 0.75rem 0.5rem;
+            }
+            
+            .ticker-grid {
+                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            }
+            
+            .watchlist-items {
+                grid-template-columns: 1fr;
+            }
+            
+            .watchlist-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="dashboard-header">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2 12h2v9H2v-9zm3 2h2v7H5v-7zm3-4h2v11H8V10zm3 2h2v9h-2v-9zm3-4h2v13h-2V8zm3 4h2v9h-2v-9z"/>
+                </svg>
+                StockSeer
+            </a>
+        </div>
+        
+        <h1>Market Insights Dashboard</h1>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="flash-message {{ category }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <!-- Technical Analysis Settings -->
+        <div class="card">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+                </svg>
+                Technical Analysis Settings
+            </h2>
+            
+            <form action="{{ url_for('update_settings') }}" method="post" class="settings-form">
+                <div class="settings-grid">
+                    <div class="settings-group">
+                        <label for="ema_short">Short EMA Period</label>
+                        <input type="number" id="ema_short" name="ema_short" value="{{ settings.ema_short }}" min="1" max="50" required>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="ema_long">Long EMA Period</label>
+                        <input type="number" id="ema_long" name="ema_long" value="{{ settings.ema_long }}" min="2" max="200" required>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="min_volume">Minimum Volume</label>
+                        <input type="number" id="min_volume" name="min_volume" value="{{ settings.min_volume }}" min="0" step="1000000" required>
+                        <span class="input-hint">Minimum volume in millions (e.g., 20,000,000)</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="lookback_days">Lookback Days</label>
+                        <input type="number" id="lookback_days" name="lookback_days" value="{{ settings.lookback_days }}" min="1" max="50" required>
+                        <span class="input-hint">Number of days to look back for signal generation</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="post_crossover_window">Post-Crossover Window</label>
+                        <input type="number" id="post_crossover_window" name="post_crossover_window" value="{{ settings.post_crossover_window }}" min="1" max="50" required>
+                        <span class="input-hint">Days after crossover to consider valid for signal</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="data_resolution">Data Resolution</label>
+                        <select id="data_resolution" name="data_resolution" required>
+                            <option value="1d" {% if settings.data_resolution == '1d' %}selected{% endif %}>1 Day</option>
+                            <option value="4h" {% if settings.data_resolution == '4h' %}selected{% endif %}>4 Hours</option>
+                            <option value="1h" {% if settings.data_resolution == '1h' %}selected{% endif %}>1 Hour</option>
+                            <option value="30m" {% if settings.data_resolution == '30m' %}selected{% endif %}>30 Minutes</option>
+                            <option value="15m" {% if settings.data_resolution == '15m' %}selected{% endif %}>15 Minutes</option>
+                        </select>
+                        <span class="input-hint">Price data time interval</span>
+                    </div>
+                    
+                    <div class="settings-group">
+                        <label for="data_period">Data Period</label>
+                        <input type="number" id="data_period" name="data_period" value="{{ settings.data_period }}" min="10" max="500" step="10" required>
+                        <span class="input-hint">Number of periods to load (affects backtesting range)</span>
+                    </div>
+                </div>
+                
+                <div class="settings-actions">
+                    <button type="submit" class="btn">Save Settings</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Watchlist Management -->
+        <div class="card">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                </svg>
+                Watchlist Management
+            </h2>
+            
+            <div class="watchlist-controls">
+                <form action="{{ url_for('add_to_watchlist') }}" method="post" class="add-ticker-form">
+                    <input type="text" name="ticker" placeholder="Enter ticker symbol" required>
+                    <button type="submit" class="btn">Add Ticker</button>
+                </form>
+                <a href="{{ url_for('refresh_watchlist') }}" class="btn btn-outline">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                    </svg>
+                    Refresh Data
+                </a>
+            </div>
+            
+            <div class="current-watchlist">
+                <h3>Current Watchlist</h3>
+                <div class="watchlist-items">
+                    {% for ticker in watchlist %}
+                        <div class="watchlist-item">
+                            <span class="ticker-name">{{ ticker }}</span>
+                            <div class="watchlist-actions">
+                                <a href="{{ url_for('plot_single', ticker=ticker) }}" class="btn btn-icon" title="Chart">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                        <line x1="8" y1="21" x2="16" y2="21" />
+                                        <line x1="12" y1="17" x2="12" y2="21" />
+                                    </svg>
+                                </a>
+                                <a href="{{ url_for('remove_from_watchlist', ticker=ticker) }}" class="btn btn-icon btn-danger" title="Remove">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+                                    </svg>
+                                </a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="ticker-grid">
+            {% for ticker in watchlist %}
+                <a href="/plot_single?ticker={{ ticker }}" class="ticker-card">{{ ticker }}</a>
+            {% endfor %}
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-.375 12.75v-1.5h.75V15h-.75zm0-3.75v-3h.75v3h-.75z" />
+                    </svg>
+                    Total Signals
+                </div>
+                <div class="stat-value">{{ signals|length }}</div>
+                <div class="stat-change">Active alerts</div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#059669">
+                        <path d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5m.75-9l3-3 2.148 2.148A12.061 12.061 0 0116.5 7.605" />
+                    </svg>
+                    Buy Signals
+                </div>
+                <div class="stat-value buy">{{ signals|selectattr('type', 'equalto', 'BUY')|list|length }}</div>
+                <div class="stat-change buy">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 19l9-7h-6V5h-6v7H3l9 7z" />
+                    </svg>
+                    Entry opportunities
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-title">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="#e11d48">
+                        <path d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M12 6.75l-1.5 3m0 0l-3-1.5M16.5 6l-3 1.5m0 0l-1.5-3" />
+                    </svg>
+                    Sell Signals
+                </div>
+                <div class="stat-value sell">{{ signals|selectattr('type', 'equalto', 'SELL')|list|length }}</div>
+                <div class="stat-change sell">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                        <path d="M12 5l9 7h-6v7h-6v-7H3l9-7z" />
+                    </svg>
+                    Exit recommendations
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18.375 2.25c-1.035 0-1.875.84-1.875 1.875v15.75c0 1.035.84 1.875 1.875 1.875h.75c1.035 0 1.875-.84 1.875-1.875V4.125c0-1.036-.84-1.875-1.875-1.875h-.75zM9.75 8.625c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-.75a1.875 1.875 0 01-1.875-1.875V8.625zM3 13.125c0-1.036.84-1.875 1.875-1.875h.75c1.036 0 1.875.84 1.875 1.875v6.75c0 1.035-.84 1.875-1.875 1.875h-.75A1.875 1.875 0 013 19.875v-6.75z" />
+                </svg>
+                Latest Trading Signals
+            </h2>
+            
+            {% if signals %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Date</th>
+                            <th>Signal</th>
+                            <th>Price</th>
+                            <th>Volume</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for signal in signals %}
+                        <tr>
+                            <td class="ticker-cell">{{ signal.ticker }}</td>
+                            <td>{{ signal.date }}</td>
+                            <td>
+                                <span class="signal-badge {% if signal.type == 'BUY' %}signal-buy{% else %}signal-sell{% endif %}">
+                                    {{ signal.type }}
+                                </span>
+                            </td>
+                            <td>{{ signal.price }}</td>
+                            <td>{{ signal.volume }}</td>
+                            <td>
+                                <div class="actions">
+                                    <a href="/plot_single?ticker={{ signal.ticker }}" class="btn btn-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M2 12h2m16 0h2M6 20V4m12 16V4"/>
+                                            <path d="M12 20v-8.5a1.5 1.5 0 013 0V20M9 9h1M9 15h1M14 9h1"/>
+                                        </svg>
+                                        Chart
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="empty-state">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M13 6l-4-4h16v4zm-6 4L3 6v16h4zM3 6l4 4h10l4-4z"/>
+                    </svg>
+                    <h3 class="empty-title">No signals detected yet</h3>
+                    <p class="empty-description">
+                        The system will generate signals when technical criteria are met.
+                        Check back later or adjust the parameters.
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="footer">
+            <a href="/plot_single" class="btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                    <line x1="8" y1="21" x2="16" y2="21" />
+                    <line x1="12" y1="17" x2="12" y2="21" />
+                </svg>
+                Technical Analysis
+            </a>
+            <a href="/plot" class="btn btn-outline">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <line x1="8" y1="3" x2="8" y2="21" />
+                    <line x1="3" y1="9" x2="21" y2="9" />
+                    <line x1="3" y1="15" x2="21" y2="15" />
+                </svg>
+                Compare Stocks
+            </a>
+        </div>
+    </div>
+</body>
+</html>
