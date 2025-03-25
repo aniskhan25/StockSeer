@@ -63,7 +63,8 @@ class StockSignalSystem:
                 cached_data = pd.read_pickle(cache_file)
                 
                 # Check if cache is recent enough
-                cache_age = datetime.now() - cached_data.index[-1]
+                cache_age = datetime.now() - cached_data.index[-2]
+
                 max_age_days = 1 if self.data_resolution == '1d' else 1/6  # 4 hours for intraday data
                 
                 resolution_seconds = 86400 if self.data_resolution == '1d' else \
