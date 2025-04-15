@@ -42,12 +42,13 @@ def get_historical_data(symbol="XRPUSDT", interval=Client.KLINE_INTERVAL_5MINUTE
     df['close'] = pd.to_numeric(df['close'])
     return df
 
-def calculate_emas(df, span1=10, span2=20):
+def calculate_emas(df, span1=10, span2=20, span3=50):
     """
     Calculate the 10 and 20 period EMAs on closing prices.
     """
     df['ema10'] = df['close'].ewm(span=span1, adjust=False).mean()
     df['ema20'] = df['close'].ewm(span=span2, adjust=False).mean()
+    df['ema50'] = df['close'].ewm(span=span3, adjust=False).mean()
     return df
 
 import numpy as np  # make sure numpy is imported at the top
@@ -89,22 +90,24 @@ def generate_signal(df, coin, bought_price=None, lookback=3, slope_angle_thresho
     close = latest.get('close')
     ema10 = latest.get('ema10')
     ema20 = latest.get('ema20')
+    ema50 = latest.get('ema50')
 
-    if close is None or ema10 is None or ema20 is None or pd.isna(close) or pd.isna(ema10) or pd.isna(ema20):
+    if close is None or ema10 is None or ema20 is None or ema50 is None or pd.isna(close) or pd.isna(ema10) or pd.isna(ema20):
         return 'hold'
     
     close = float(close)
     ema10 = float(ema10)
     ema20 = float(ema20)
+    ema50 = float(ema50)
     
     if bought_price is not None:
-        print(f"{coin}: Bought Price: {bought_price:.3f}, Close: {close:.3f}, EMA10: {ema10:.3f}, EMA20: {ema20:.3f}, Slope Angle: {slope_angle:.3f}")
+        print(f"{coin}: Bought Price: {bought_price:.3f}, Close: {close:.3f}, EMA10: {ema10:.3f}, EMA20: {ema20:.3f}, EMA50: {ema50:.3f}, Slope Angle: {slope_angle:.3f}")
     else:
-        print(f"{coin}: Close: {close:.3f}, EMA10: {ema10:.3f}, EMA20: {ema20:.3f}, Slope Angle: {slope_angle:.3f}")
+        print(f"{coin}: Close: {close:.3f}, EMA10: {ema10:.3f}, EMA20: {ema20:.3f}, EMA50: {ema50:.3f}, Slope Angle: {slope_angle:.3f}")
 
     # Strategy:
     # Buy if EMA10 > EMA20, close > EMA10, and EMA10 trend angle > 5 degrees.
-    if ema10 > ema20 and close > ema10 and slope_angle > slope_angle_threshold:
+    if ema10 > ema20 and ema20 > ema50 and close > ema10 and slope_angle > slope_angle_threshold:
         return 'buy'
     # Sell if the most recent close is below EMA10.
     elif close < ema20:
@@ -407,8 +410,9 @@ class TradingBotWindow(QMainWindow):
                 if not df_coin.empty:
                     ema10_val = float(df_coin.iloc[-1]['ema10'])
                     ema20_val = float(df_coin.iloc[-1]['ema20'])
+                    ema50_val = float(df_coin.iloc[-1]['ema50'])
                     close_val = float(df_coin.iloc[-1]['close'])
-                    print(f"{coin} Signal: {coin_signal} | EMA10: {ema10_val:.4f} | EMA20: {ema20_val:.4f} | Close: {close_val:.4f}")
+                    print(f"{coin} Signal: {coin_signal} | EMA10: {ema10_val:.4f} | EMA20: {ema20_val:.4f} | EMA50: {ema50_val:.4f} | Close: {close_val:.4f}")
                 else:
                     print(f"{coin} - No data available; Signal: {coin_signal}")
                 
