@@ -107,7 +107,7 @@ def generate_signal(df, coin, bought_price=None, lookback=3, slope_angle_thresho
     if ema10 > ema20 and close > ema10 and slope_angle > slope_angle_threshold:
         return 'buy'
     # Sell if the most recent close is below EMA10.
-    elif close < ema10:
+    elif close < ema20:
         return 'sell'
     elif bought_price is not None and close < bought_price * 0.99:
         return 'sell'
@@ -219,6 +219,7 @@ def execute_trade(signal, trade_amount, coin, fee_rate=0.005):
             window_instance.coin_labels[coin].setStyleSheet("color: red;")
         elif signal == 'sell':
             quantity_str = adjust_quantity_to_lot_size(symbol, coin_qty)
+            print(quantity_str)
             client.order_market_sell(symbol=symbol, quantity=quantity_str)
             window_instance.coin_labels[coin].setStyleSheet("color: green;")
         else:
@@ -476,7 +477,7 @@ class TradingBotWindow(QMainWindow):
                             print(f"No available USDT for additional buy of {coin}.")
                 
                 elif coin_signal == "sell" and self.portfolio[coin] > 0:
-                    coin_amount = self.portfolio[coin] * 0.95
+                    coin_amount = self.portfolio[coin] * 0.99
                     price = get_current_price(coin + "USDT")
                     if price is None or price == 0.0:
                         print(f"Skipping {coin} due to invalid price.")
@@ -509,6 +510,7 @@ class TradingBotWindow(QMainWindow):
                         continue
 
                     # Execute sell trade using the adjusted quantity.
+                    print(coin_amount, quantity_str, adjusted_qty)
                     success = execute_trade("sell", adjusted_qty, coin)
                     if success:
                         usdt_received = adjusted_qty * price * (1 - fee_rate)
