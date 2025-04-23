@@ -382,29 +382,28 @@ class TradingBotWindow(QMainWindow):
         try:
             total_value = self.portfolio["USDT"]
 
-            # Build a list of (coin, coin_signal, df_coin) for each coin.
+            # Build a list of (coin, coin_signal, df_coin, pct_slope) for each coin.
             coin_signal_data = []
+            lookback = 5  # number of bars used for slope calculation
             for coin in self.TARGET_COINS:
                 symbol = coin + "USDT"
                 df_coin = get_historical_data(symbol=symbol, interval=Client.KLINE_INTERVAL_5MINUTE, lookback="1 day ago UTC")
                 df_coin = calculate_emas(df_coin, span1=10, span2=20)
                 coin_signal = generate_signal(df_coin, coin, bought_price=self.bought_price[coin])
-                coin_signal_data.append((coin, coin_signal, df_coin))
-            
-            # Define sort order: sell signals first, then hold, then buy.
-            def sort_key(item):
-                coin, signal, _ = item
-                if signal == "sell":
-                    return 0
-                elif signal == "hold":
-                    return 1
-                elif signal == "buy":
-                    return 2
-                return 3
-            coin_signal_data.sort(key=sort_key)
+                # Compute percent slope increase over the last 'lookback' EMA10 values
+                if len(df_coin) >= lookback:
+                    recent = df_coin['ema10'].astype(float).values[-lookback:]
+                    base = recent[0]
+                    pct_changes = (recent - base) / base * 100  # percent change array
+                    pct_slope = pct_changes[-1]  # percent change from first to last
+                else:
+                    pct_slope = 0.0
+                coin_signal_data.append((coin, coin_signal, df_coin, pct_slope))
+            # Sort coins by descending percent slope increase before processing
+            coin_signal_data.sort(key=lambda item: item[3], reverse=True)
             
             # Process coins in the sorted order.
-            for coin, coin_signal, df_coin in coin_signal_data:
+            for coin, coin_signal, df_coin, pct_slope in coin_signal_data:
                 symbol = coin + "USDT"
                 # Print coin signal info
                 if not df_coin.empty:
@@ -412,7 +411,7 @@ class TradingBotWindow(QMainWindow):
                     ema20_val = float(df_coin.iloc[-1]['ema20'])
                     ema50_val = float(df_coin.iloc[-1]['ema50'])
                     close_val = float(df_coin.iloc[-1]['close'])
-                    print(f"{coin} Signal: {coin_signal} | EMA10: {ema10_val:.4f} | EMA20: {ema20_val:.4f} | EMA50: {ema50_val:.4f} | Close: {close_val:.4f}")
+                    print(f"{coin} Signal: {coin_signal} | EMA10: {ema10_val:.4f} | EMA20: {ema20_val:.4f} | EMA50: {ema50_val:.4f} | Close: {close_val:.4f} | EMA10 % slope (last {lookback}): {pct_slope:.2f}%")
                 else:
                     print(f"{coin} - No data available; Signal: {coin_signal}")
                 
