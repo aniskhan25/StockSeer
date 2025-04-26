@@ -368,6 +368,22 @@ def plot_single():
         row=1, col=1
     )
     
+    # Add trace for 50 EMA with a gray transparent line (add this first so it's in the background)
+    if 'EMA_50' in data.columns:
+        fig.add_trace(
+            go.Scatter(
+                x=data.index,
+                y=data['EMA_50'],
+                mode='lines',
+                name='50 EMA',
+                line=dict(color='#9E9E9E', width=1.5),
+                opacity=0.3,
+                hoverinfo='text',
+                hovertext=[f"50 EMA: ${val:.2f}" for val in data['EMA_50']]
+            ),
+            row=1, col=1
+        )
+    
     # Add trace for short EMA with a blue line
     fig.add_trace(
         go.Scatter(
@@ -397,15 +413,9 @@ def plot_single():
     # Add markers for signals specific to the selected ticker
     ticker_signals = [s for s in system.signals if s['ticker'] == selected_ticker]
     
-    # Debug signal information
-    print(f"Found {len(ticker_signals)} signals for {selected_ticker}")
-    for signal in ticker_signals:
-        print(f"Signal: {signal['type']} on {signal['date']} at price {signal['price']}")
-    
     # Get the date range for our data
     start_date = data.index[0]
     end_date = data.index[-1]
-    print(f"Data range: {start_date} to {end_date}")
     
     # Filter signals in our date range without using 'in' operator
     visible_signals = []
@@ -414,7 +424,7 @@ def plot_single():
         if start_date <= signal_date <= end_date:
             visible_signals.append(signal)
     
-    print(f"Visible signals in range: {len(visible_signals)}")
+    logging.debug(f"Found {len(visible_signals)} visible signals for {selected_ticker} in date range {start_date} to {end_date}")
     
     # Add each signal marker
     for signal in visible_signals:
@@ -446,6 +456,45 @@ def plot_single():
             ),
             row=1, col=1
         )
+        
+        # Add stop loss marker for BUY signals (3% below close price)
+        if signal['type'] == 'BUY':
+            stop_loss_price = price * 0.97  # 3% below the buy price
+            
+            # Add the stop loss marker
+            fig.add_trace(
+                go.Scatter(
+                    x=[signal['date']],
+                    y=[stop_loss_price],
+                    mode='markers+text',
+                    marker=dict(
+                        color='#9C27B0',  # Purple color for stop loss
+                        size=15, 
+                        symbol='circle',
+                        line=dict(width=2, color='black')
+                    ),
+                    text=['STOP'],
+                    textposition='bottom center',
+                    name=f"Stop Loss @ {stop_loss_price:.2f}",
+                    hoverinfo='text',
+                    hovertext=f"Stop Loss: ${stop_loss_price:.2f} (3% below entry)",
+                    showlegend=False
+                ),
+                row=1, col=1
+            )
+            
+            # Add dashed line connecting the buy signal to the stop loss
+            fig.add_trace(
+                go.Scatter(
+                    x=[signal['date'], signal['date']],
+                    y=[price, stop_loss_price],
+                    mode='lines',
+                    line=dict(color='#9C27B0', width=1, dash='dash'),
+                    showlegend=False,
+                    hoverinfo='none'
+                ),
+                row=1, col=1
+            )
     
     # Add volume as a bar chart
     # Fix: Compare scalar values from each row
@@ -478,26 +527,203 @@ def plot_single():
         row=2, col=1
     )
     
-    # Add annotation for min volume threshold instead of a line
+    # Add a horizontal line for the minimum volume threshold
+    fig.add_shape(
+        type="line",
+        x0=data.index[0],
+        x1=data.index[-1],
+        y0=system.min_volume,
+        y1=system.min_volume,
+        line=dict(
+            color="#FF9800",
+            width=1.5,
+            dash="dot",
+        ),
+        row=2, col=1
+    )
+    
+    # Add annotation for min volume threshold
     fig.add_annotation(
         x=data.index[-1],
         y=system.min_volume,
         text=f"Min Volume: {system.min_volume/1000000:.0f}M",
-        showarrow=True,
-        arrowhead=2,
-        arrowcolor="#FF9800",
-        arrowsize=1,
-        arrowwidth=2,
-        ax=-80,
-        ay=0,
+        showarrow=False,
+        xanchor="right",
+        yanchor="bottom",
+        xshift=0,
+        yshift=5,
         bgcolor="rgba(255, 255, 255, 0.8)",
         bordercolor="#FF9800",
         borderwidth=1,
         borderpad=4,
-        font=dict(color="#FF9800"),
-        row=2,
-        col=1
+        font=dict(color="#FF9800", size=10),
+        row=2, col=1
     )
+    
+    # Add resistance and support levels if available
+    try:
+        logging.debug(f"Adding resistance and support levels for {selected_ticker}")
+        
+        # Resistance levels - default values if none detected
+        hardcoded_resistance = [
+            data['Close'].max() * 1.02,  # 2% above max close
+            data['Close'].max() * 1.05,  # 5% above max close
+            data['Close'].max() * 1.10   # 10% above max close
+        ]
+        
+        # Support levels - default values if none detected
+        hardcoded_support = [
+            data['Close'].min() * 0.98,  # 2% below min close
+            data['Close'].min() * 0.95,  # 5% below min close
+            data['Close'].min() * 0.90   # 10% below min close
+        ]
+        
+        # Combine algorithm-detected levels with hardcoded ones
+        all_resistance_levels = []
+        all_support_levels = []
+        
+        # Get resistance levels
+        if hasattr(system, 'resistance_levels') and selected_ticker in system.resistance_levels:
+            algorithm_resistance = system.resistance_levels[selected_ticker]
+            all_resistance_levels.extend(algorithm_resistance)
+            logging.debug(f"Using {len(algorithm_resistance)} algorithm-detected resistance levels")
+        
+        if not all_resistance_levels:
+            all_resistance_levels.extend(hardcoded_resistance)
+            logging.debug("Using default resistance levels")
+            
+        # Get support levels
+        if hasattr(system, 'support_levels') and selected_ticker in system.support_levels:
+            algorithm_support = system.support_levels[selected_ticker]
+            all_support_levels.extend(algorithm_support)
+            logging.debug(f"Using {len(algorithm_support)} algorithm-detected support levels")
+        
+        if not all_support_levels:
+            all_support_levels.extend(hardcoded_support)
+            logging.debug("Using default support levels")
+            
+        # Add horizontal lines for resistance levels
+        displayed_count = 0
+        for i, level in enumerate(all_resistance_levels):
+            # Limit the number of resistance levels to display (maximum 3)
+            if displayed_count >= 3:
+                continue
+                
+            # Filter significant resistance levels by spread (at least 2% apart)
+            if i > 0 and all_resistance_levels[i-1] > 0:
+                # Skip if too close to previous level
+                prev_level = all_resistance_levels[i-1]
+                percent_diff = abs(level - prev_level) / prev_level
+                if percent_diff < 0.02:
+                    continue
+            
+            # Standard technical resistance - red dashed lines
+            line_color = "#FF0000"  # Red
+            line_width = 1  # Thinner line
+            line_dash = "dash"  # Dashed line
+            line_opacity = 0.4  # More transparent
+            label_prefix = "R"  # Resistance
+            label_color = "#FF0000"
+            bg_color = "rgba(255, 0, 0, 0.1)"
+            border_color = "#FF0000"
+            
+            # Add the horizontal line
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=level,
+                y1=level,
+                line=dict(
+                    color=line_color,
+                    width=line_width,
+                    dash=line_dash,
+                ),
+                opacity=line_opacity,
+                row=1, col=1
+            )
+            
+            # Add annotation for the resistance level
+            fig.add_annotation(
+                x=data.index[-1],
+                y=level,
+                text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="bottom",
+                font=dict(color=label_color, size=8),
+                bgcolor=bg_color,
+                bordercolor=border_color,
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            displayed_count += 1
+            
+        # Add horizontal lines for support levels
+        displayed_count = 0
+        for i, level in enumerate(all_support_levels):
+            # Limit the number of support levels to display (maximum 3)
+            if displayed_count >= 3:
+                continue
+                
+            # Filter significant support levels by spread (at least 2% apart)
+            if i > 0 and all_support_levels[i-1] > 0:
+                # Skip if too close to previous level
+                prev_level = all_support_levels[i-1]
+                percent_diff = abs(level - prev_level) / prev_level
+                if percent_diff < 0.02:
+                    continue
+            
+            # Standard technical support - green dashed lines
+            line_color = "#4CAF50"  # Green
+            line_width = 1  # Thinner line
+            line_dash = "dash"  # Dashed line
+            line_opacity = 0.4  # More transparent
+            label_prefix = "S"  # Support
+            label_color = "#4CAF50"
+            bg_color = "rgba(76, 175, 80, 0.1)"
+            border_color = "#4CAF50"
+            
+            # Add the horizontal line
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=level,
+                y1=level,
+                line=dict(
+                    color=line_color,
+                    width=line_width,
+                    dash=line_dash,
+                ),
+                opacity=line_opacity,
+                row=1, col=1
+            )
+            
+            # Add annotation for the support level
+            fig.add_annotation(
+                x=data.index[-1],
+                y=level,
+                text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="top",  # Place below the line
+                font=dict(color=label_color, size=8),
+                bgcolor=bg_color,
+                bordercolor=border_color,
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            displayed_count += 1
+        
+    except Exception as e:
+        logging.error(f"Error adding resistance and support levels: {e}", exc_info=True)
     
     # Update layout with modern styling
     fig.update_layout(
@@ -615,10 +841,8 @@ def plot_combined():
                 # Use the newly fetched data
                 system.stock_data[ticker] = temp_system.stock_data[ticker]
                 # Calculate indicators for this ticker
-                try:
-                    system._calculate_indicators_for_ticker(ticker)
-                except:
-                    # Just continue without indicators if it fails
+                if not system._calculate_indicators_for_ticker(ticker):
+                    # Skip this ticker if indicators couldn't be calculated
                     logging.warning(f"Failed to calculate indicators for {ticker}")
                     continue
             else:

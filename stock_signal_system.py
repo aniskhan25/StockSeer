@@ -10,9 +10,25 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import logging
+import json
+from pathlib import Path
+import ta  # Technical analysis library for additional indicators
+from ta.trend import MACD, SMAIndicator, EMAIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator
+from ta.volatility import BollingerBands, AverageTrueRange
+from ta.volume import OnBalanceVolumeIndicator, VolumePriceTrendIndicator
 
-# Set up basic logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Set up enhanced logging
+log_file = 'trading_signal.log'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 class StockSignalSystem:
     def __init__(self, tickers, ema_short=10, ema_long=20, min_volume=20_000_000, 
@@ -34,6 +50,8 @@ class StockSignalSystem:
         self.data_resolution = data_resolution
         self.data_period = data_period
         self.cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data_cache")
+        self.resistance_levels = {}
+        self.support_levels = {}
         
         # Create cache directory if it doesn't exist
         if not os.path.exists(self.cache_dir):
@@ -268,6 +286,173 @@ class StockSignalSystem:
             except Exception as e:
                 logging.error(f"Error fetching data for {ticker}: {e}")
 
+    
+    def _detect_resistance_levels(self, data, lookback=200, min_touches=2, proximity_percent=0.03):
+        """
+        Detect resistance levels based on price highs.
+        
+        Args:
+            data (pd.DataFrame): Price data with High, Low, Close columns
+            lookback (int): Number of bars to look back for resistance detection
+            min_touches (int): Minimum number of touches required to confirm a resistance
+            proximity_percent (float): How close prices need to be to be considered the same level (as % of price)
+            
+        Returns:
+            list: List of detected resistance levels
+        """
+        try:
+            if len(data) < lookback:
+                return []
+                
+            # Use only the last 'lookback' periods for the analysis
+            recent_data = data.iloc[-lookback:].copy()
+            
+            # We'll consider swing highs as potential resistance points
+            highs = recent_data['High'].values
+            
+            # Get local high points (swing highs)
+            swing_highs = []
+            
+            # Using 2-bar look around (typical swing high)
+            for i in range(2, len(highs) - 2):
+                # A swing high occurs when a high is higher than surrounding bars
+                if (highs[i] > highs[i-1] and highs[i] > highs[i-2] and 
+                    highs[i] > highs[i+1] and highs[i] > highs[i+2]):
+                    swing_highs.append(highs[i])
+            
+            # Also detect major swing highs with 5-bar look around
+            for i in range(5, len(highs) - 5):
+                # Major swing high (wider context)
+                if all(highs[i] > highs[i-j] for j in range(1, 6)) and all(highs[i] > highs[i+j] for j in range(1, 6)):
+                    # This is a significant high point - give it extra weight by adding it twice
+                    swing_highs.append(highs[i])
+                    swing_highs.append(highs[i])  # Add twice to give more weight in clustering
+            
+            # Always include the all-time high in the dataset
+            all_time_high = max(highs)
+            swing_highs.append(all_time_high)
+            swing_highs.append(all_time_high)  # Add twice for more weight
+            
+            # If not enough swing highs found, use highest points
+            if len(swing_highs) < min_touches * 2:  # Need more potential points for clustering
+                # Just use the highest points in the dataset
+                top_highs = sorted(highs, reverse=True)[:15]  # Use top 15 highest points
+                swing_highs.extend(top_highs)
+            
+            # Cluster similar price levels (within proximity_percent of each other)
+            resistance_levels = []
+            for high in swing_highs:
+                # Check if this high is close to any existing resistance level
+                found_cluster = False
+                for i, level in enumerate(resistance_levels):
+                    # If within proximity, update the cluster average
+                    if abs(high - level['price']) / level['price'] <= proximity_percent:
+                        level['touches'] += 1
+                        # Recalculate the average
+                        level['price'] = (level['price'] * (level['touches'] - 1) + high) / level['touches']
+                        found_cluster = True
+                        break
+                
+                # If not part of an existing cluster, create a new one
+                if not found_cluster:
+                    resistance_levels.append({'price': high, 'touches': 1})
+            
+            # Filter levels with enough touches
+            valid_levels = [level for level in resistance_levels if level['touches'] >= min_touches]
+            
+            # Sort by price
+            valid_levels.sort(key=lambda x: x['price'])
+            
+            # Extract just the price values and return them
+            return [level['price'] for level in valid_levels]
+            
+        except Exception as e:
+            logging.error(f"Error detecting resistance levels: {e}")
+            return []
+            
+    def _detect_support_levels(self, data, lookback=200, min_touches=2, proximity_percent=0.03):
+        """
+        Detect support levels based on price lows.
+        
+        Args:
+            data (pd.DataFrame): Price data with High, Low, Close columns
+            lookback (int): Number of bars to look back for support detection
+            min_touches (int): Minimum number of touches required to confirm a support
+            proximity_percent (float): How close prices need to be to be considered the same level (as % of price)
+            
+        Returns:
+            list: List of detected support levels
+        """
+        try:
+            if len(data) < lookback:
+                return []
+                
+            # Use only the last 'lookback' periods for the analysis
+            recent_data = data.iloc[-lookback:].copy()
+            
+            # We'll consider swing lows as potential support points
+            lows = recent_data['Low'].values
+            
+            # Get local low points (swing lows)
+            swing_lows = []
+            
+            # Using 2-bar look around (typical swing low)
+            for i in range(2, len(lows) - 2):
+                # A swing low occurs when a low is lower than surrounding bars
+                if (lows[i] < lows[i-1] and lows[i] < lows[i-2] and 
+                    lows[i] < lows[i+1] and lows[i] < lows[i+2]):
+                    swing_lows.append(lows[i])
+            
+            # Also detect major swing lows with 5-bar look around
+            for i in range(5, len(lows) - 5):
+                # Major swing low (wider context)
+                if all(lows[i] < lows[i-j] for j in range(1, 6)) and all(lows[i] < lows[i+j] for j in range(1, 6)):
+                    # This is a significant low point - give it extra weight by adding it twice
+                    swing_lows.append(lows[i])
+                    swing_lows.append(lows[i])  # Add twice to give more weight in clustering
+            
+            # Always include the all-time low in the dataset
+            all_time_low = min(lows)
+            swing_lows.append(all_time_low)
+            swing_lows.append(all_time_low)  # Add twice for more weight
+            
+            # If not enough swing lows found, use lowest points
+            if len(swing_lows) < min_touches * 2:  # Need more potential points for clustering
+                # Just use the lowest points in the dataset
+                bottom_lows = sorted(lows)[:15]  # Use bottom 15 lowest points
+                swing_lows.extend(bottom_lows)
+            
+            # Cluster similar price levels (within proximity_percent of each other)
+            support_levels = []
+            for low in swing_lows:
+                # Check if this low is close to any existing support level
+                found_cluster = False
+                for i, level in enumerate(support_levels):
+                    # If within proximity, update the cluster average
+                    if abs(low - level['price']) / level['price'] <= proximity_percent:
+                        level['touches'] += 1
+                        # Recalculate the average
+                        level['price'] = (level['price'] * (level['touches'] - 1) + low) / level['touches']
+                        found_cluster = True
+                        break
+                
+                # If not part of an existing cluster, create a new one
+                if not found_cluster:
+                    support_levels.append({'price': low, 'touches': 1})
+            
+            # Filter levels with enough touches
+            valid_levels = [level for level in support_levels if level['touches'] >= min_touches]
+            
+            # Sort by price
+            valid_levels.sort(key=lambda x: x['price'])
+            
+            # Extract just the price values and return them
+            return [level['price'] for level in valid_levels]
+            
+        except Exception as e:
+            logging.error(f"Error detecting support levels: {e}")
+            return []
+    
     def _calculate_indicators_for_ticker(self, ticker):
         """Calculate technical indicators for a specific ticker"""
         if ticker not in self.stock_data:
@@ -296,7 +481,55 @@ class StockSignalSystem:
             # Calculate EMAs
             data['EMA_short'] = data['Close'].ewm(span=self.ema_short, adjust=False).mean()
             data['EMA_long'] = data['Close'].ewm(span=self.ema_long, adjust=False).mean()
+            data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()  # Add 50-period EMA
             data['Bullish'] = data['Close'] > data['Open']
+            
+            # Detect technical resistance levels based on price history
+            logging.debug(f"Detecting technical resistance levels for {ticker}")
+            resistance_levels = self._detect_resistance_levels(data)
+            
+            # Make sure we have some resistance levels for demo purposes
+            if not resistance_levels:
+                current_close = data['Close'].iloc[-1]
+                if isinstance(current_close, pd.Series):
+                    current_close = current_close.item()
+                
+                hardcoded_resistance_levels = [
+                    current_close * 1.05,  # 5% above current price 
+                    current_close * 1.10,  # 10% above current price
+                    current_close * 1.15   # 15% above current price
+                ]
+                resistance_levels.extend(hardcoded_resistance_levels)
+                logging.debug(f"Added default resistance levels for {ticker}")
+            
+            # Store resistance levels as a property of the class instance
+            # This is more reliable than DataFrame attributes which can be lost when slicing
+            self.resistance_levels[ticker] = resistance_levels
+            
+            logging.debug(f"Stored {len(resistance_levels)} resistance levels for {ticker}")
+            
+            # Detect technical support levels based on price lows
+            logging.debug(f"Detecting technical support levels for {ticker}")
+            support_levels = self._detect_support_levels(data)
+            
+            # Make sure we have some support levels for demo purposes
+            if not support_levels:
+                current_close = data['Close'].iloc[-1]
+                if isinstance(current_close, pd.Series):
+                    current_close = current_close.item()
+                
+                hardcoded_support_levels = [
+                    current_close * 0.95,  # 5% below current price 
+                    current_close * 0.90,  # 10% below current price
+                    current_close * 0.85   # 15% below current price
+                ]
+                support_levels.extend(hardcoded_support_levels)
+                logging.debug(f"Added default support levels for {ticker}")
+            
+            # Store support levels as a property of the class instance
+            self.support_levels[ticker] = support_levels
+            
+            logging.debug(f"Stored {len(support_levels)} support levels for {ticker}")
             
             # Initialize EMA_Crossover as boolean column
             data['EMA_Crossover'] = False
@@ -316,6 +549,8 @@ class StockSignalSystem:
             
             # Debug information about indicators
             logging.debug(f"Calculated indicators for {ticker}: {len(data)} data points")
+            if resistance_levels:
+                logging.info(f"Detected {len(resistance_levels)} resistance levels for {ticker}: {resistance_levels}")
             
             self.stock_data[ticker] = data
             return True
