@@ -392,20 +392,7 @@
             margin-top: 1rem;
         }
         
-        /* Bottom Management Sections */
-        .card:nth-last-of-type(2),
-        .card:last-of-type {
-            border-top: 2px dashed #e5e7eb;
-            padding-top: 2.5rem;
-            margin-top: 2rem;
-            background-color: #fafbfc;
-        }
-        
-        .card:nth-last-of-type(2) {
-            margin-bottom: 0.5rem;
-            border-bottom: none;
-            padding-bottom: 1rem;
-        }
+        /* Management Sections - No border styling needed as they're now integrated parts of the dashboard */
         
         /* Watchlist Management */
         .watchlist-controls {
@@ -529,13 +516,6 @@
             {% endif %}
         {% endwith %}
         
-        
-        <div class="ticker-grid">
-            {% for ticker in watchlist %}
-                <a href="/plot_single?ticker={{ ticker }}" class="ticker-card">{{ ticker }}</a>
-            {% endfor %}
-        </div>
-        
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-title">
@@ -577,6 +557,56 @@
                         <path d="M12 5l9 7h-6v7h-6v-7H3l9-7z" />
                     </svg>
                     Exit recommendations
+                </div>
+            </div>
+        </div>
+        
+        <!-- Watchlist Management -->
+        <div class="card">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                </svg>
+                Watchlist Management
+            </h2>
+            
+            <div>
+                <div class="watchlist-controls">
+                    <form action="{{ url_for('add_to_watchlist') }}" method="post" class="add-ticker-form">
+                        <input type="text" name="ticker" placeholder="Enter ticker symbol" required>
+                        <button type="submit" class="btn">Add Ticker</button>
+                    </form>
+                    <a href="{{ url_for('refresh_watchlist') }}" class="btn btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                        </svg>
+                        Refresh Data
+                    </a>
+                </div>
+                
+                <div class="current-watchlist">
+                    <h3>Current Watchlist</h3>
+                    <div class="watchlist-items">
+                        {% for ticker in watchlist %}
+                            <div class="watchlist-item">
+                                <span class="ticker-name">{{ ticker }}</span>
+                                <div class="watchlist-actions">
+                                    <a href="{{ url_for('plot_single', ticker=ticker) }}" class="btn btn-icon" title="Chart">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                            <line x1="8" y1="21" x2="16" y2="21" />
+                                            <line x1="12" y1="17" x2="12" y2="21" />
+                                        </svg>
+                                    </a>
+                                    <a href="{{ url_for('remove_from_watchlist', ticker=ticker) }}" class="btn btn-icon btn-danger" title="Remove">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
         </div>
@@ -662,72 +692,16 @@
             </a>
         </div>
         
-        <!-- Watchlist Management -->
-        <div class="card">
-            <h2 id="watchlist-toggle" style="cursor: pointer;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
-                </svg>
-                Watchlist Management
-                <svg id="watchlist-expand-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 10px;">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-            </h2>
-            
-            <div id="watchlist-form" style="display: none;">
-                <div class="watchlist-controls">
-                    <form action="{{ url_for('add_to_watchlist') }}" method="post" class="add-ticker-form">
-                        <input type="text" name="ticker" placeholder="Enter ticker symbol" required>
-                        <button type="submit" class="btn">Add Ticker</button>
-                    </form>
-                    <a href="{{ url_for('refresh_watchlist') }}" class="btn btn-outline">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
-                        </svg>
-                        Refresh Data
-                    </a>
-                </div>
-                
-                <div class="current-watchlist">
-                    <h3>Current Watchlist</h3>
-                    <div class="watchlist-items">
-                        {% for ticker in watchlist %}
-                            <div class="watchlist-item">
-                                <span class="ticker-name">{{ ticker }}</span>
-                                <div class="watchlist-actions">
-                                    <a href="{{ url_for('plot_single', ticker=ticker) }}" class="btn btn-icon" title="Chart">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                                            <line x1="8" y1="21" x2="16" y2="21" />
-                                            <line x1="12" y1="17" x2="12" y2="21" />
-                                        </svg>
-                                    </a>
-                                    <a href="{{ url_for('remove_from_watchlist', ticker=ticker) }}" class="btn btn-icon btn-danger" title="Remove">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
-                                        </svg>
-                                    </a>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-        </div>
-        
         <!-- Technical Analysis Settings -->
         <div class="card">
-            <h2 id="settings-toggle" style="cursor: pointer;">
+            <h2>
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
                 </svg>
                 Technical Analysis Settings
-                <svg id="settings-expand-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: 10px;">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
             </h2>
             
-            <form action="{{ url_for('update_settings') }}" method="post" class="settings-form" id="settings-form" style="display: none;">
+            <form action="{{ url_for('update_settings') }}" method="post" class="settings-form">
                 <div class="settings-grid">
                     <div class="settings-group">
                         <label for="ema_short">Short EMA Period</label>
@@ -784,53 +758,7 @@
     </div>
     
     <script>
-        // Toggle functionality for collapsible sections
-        document.addEventListener('DOMContentLoaded', function() {
-            // Technical settings toggle
-            const settingsToggle = document.getElementById('settings-toggle');
-            const settingsForm = document.getElementById('settings-form');
-            const expandIcon = document.getElementById('settings-expand-icon');
-            
-            settingsToggle.addEventListener('click', function() {
-                if (settingsForm.style.display === 'none') {
-                    settingsForm.style.display = 'block';
-                    expandIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
-                } else {
-                    settingsForm.style.display = 'none';
-                    expandIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
-                }
-            });
-            
-            // Watchlist management toggle
-            const watchlistToggle = document.getElementById('watchlist-toggle');
-            const watchlistForm = document.getElementById('watchlist-form');
-            const watchlistExpandIcon = document.getElementById('watchlist-expand-icon');
-            
-            watchlistToggle.addEventListener('click', function() {
-                if (watchlistForm.style.display === 'none') {
-                    watchlistForm.style.display = 'block';
-                    watchlistExpandIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
-                } else {
-                    watchlistForm.style.display = 'none';
-                    watchlistExpandIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
-                }
-            });
-            
-            // Auto-expand sections when there are flash messages related to them
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% for category, message in messages %}
-                    {% if category == 'error' and ('EMA' in message or 'volume' in message or 'days' in message or 'period' in message or 'window' in message or 'resolution' in message) %}
-                        settingsForm.style.display = 'block';
-                        expandIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
-                    {% endif %}
-                    
-                    {% if 'ticker' in message|lower or 'watchlist' in message|lower %}
-                        watchlistForm.style.display = 'block';
-                        watchlistExpandIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
-                    {% endif %}
-                {% endfor %}
-            {% endwith %}
-        });
+        // No toggle functionality needed as all sections are now always visible
     </script>
 </body>
 </html>

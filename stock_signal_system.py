@@ -591,12 +591,13 @@ class StockSignalSystem:
                 
                     # Check buy signal conditions within the post-crossover window.
                     # That is, if a crossover occurred recently (within the specified window),
-                    # and the remaining conditions (volume, bullish, and price above EMA_short) are met.
+                    # and the remaining conditions (volume, bullish, price above EMA_short, and price above EMA_50) are met.
                     if (last_crossover_date is not None and 
                         (date - last_crossover_date).days <= post_crossover_window and
                         row['Volume'] >= self.min_volume and 
                         bullish and 
-                        row['Close'] > row['EMA_short']):
+                        row['Close'] > row['EMA_short'] and
+                        row['Close'] > row['EMA_50']):  # Added condition: close price must be above 50-period EMA
                         
                         signal = self._create_signal_dict(ticker, date, 'BUY', row)
                         current_signals.append(signal)
@@ -663,6 +664,7 @@ class StockSignalSystem:
             ax1.plot(data.index, data['Close'], label='Close', color='black', alpha=0.75)
             ax1.plot(data.index, data['EMA_short'], label=f'{self.ema_short} EMA', color='blue')
             ax1.plot(data.index, data['EMA_long'], label=f'{self.ema_long} EMA', color='red')
+            ax1.plot(data.index, data['EMA_50'], label='50 EMA', color='green', linestyle='--')
             
             # Plot signals
             for signal_type, marker, color in [('BUY', '^', 'green'), ('SELL', 'v', 'red')]:
@@ -755,6 +757,7 @@ class StockSignalSystem:
             # Calculate indicators
             data['EMA_short'] = data['Close'].ewm(span=self.ema_short, adjust=False).mean()
             data['EMA_long'] = data['Close'].ewm(span=self.ema_long, adjust=False).mean()
+            data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()  # Add 50-period EMA
             data['Bullish'] = data['Close'] > data['Open']
             data['EMA_Crossover'] = (
                 (data['EMA_short'] > data['EMA_long']) & 
@@ -785,12 +788,18 @@ class StockSignalSystem:
                 if isinstance(bullish, pd.Series):
                     bullish = bullish.item()
 
+                # Get the 50 EMA value
+                ema_50 = row['EMA_50']
+                if isinstance(ema_50, pd.Series):
+                    ema_50 = ema_50.item()
+
                 # Now use these scalar values in your condition
                 if (position == 0 and 
                     ema_crossover and 
                     volume >= self.min_volume and 
                     bullish and 
-                    close_price > ema_short):
+                    close_price > ema_short and
+                    close_price > ema_50):  # Added condition: close price must be above 50-period EMA
                     
                     position = 1
                     entry_price = close_price
