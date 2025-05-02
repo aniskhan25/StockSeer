@@ -480,11 +480,13 @@ class TradingBotWindow(QMainWindow):
                             print(f"No available USDT for additional buy of {coin}.")
                 
                 elif coin_signal == "sell" and self.portfolio[coin] > 0:
-                    coin_amount = self.portfolio[coin] * 0.99
                     price = get_current_price(coin + "USDT")
                     if price is None or price == 0.0:
                         print(f"Skipping {coin} due to invalid price.")
                         continue
+
+                    # Ensure at least 3 USDT worth of the coin remains in the portfolio after selling.
+                    coin_amount = max(0.0, self.portfolio[coin] - 3 / price)
 
                     # Check if the value of the holding is less than 25 USDT; if so, skip selling.
                     if coin_amount * price < 25:
