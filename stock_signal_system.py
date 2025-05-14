@@ -1,3 +1,4 @@
+from curl_cffi import requests
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -111,6 +112,8 @@ class StockSignalSystem:
             logging.error(f"Error saving cache for {ticker}: {e}")
     
     def fetch_data(self):
+        session = requests.Session(impersonate="chrome")
+
         # We'll use different date ranges based on resolution
         end_date = datetime.now()
         
@@ -141,8 +144,11 @@ class StockSignalSystem:
                     continue
                  
                 # No valid cache, download fresh data
-                logging.info(f"Downloading {ticker} data with {interval} resolution")
-                data = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False)
+                logging.info(f"Downloading {ticker} data from {start_date} to {end_date} with {interval} resolution")
+                yfticker = yf.Ticker(ticker, session=session)
+                data = yfticker.history(start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+
+                # data = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False)
                 
                 # Add debugging information for diagnostics
                 if not data.empty:

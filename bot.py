@@ -363,7 +363,7 @@ class TradingBotWindow(QMainWindow):
         # Setup a QTimer to update every 5 minutes (300000 ms); adjust for testing if needed.
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_bot)
-        self.timer.start(600000)
+        self.timer.start(3600000) # 1 hour
 
         # Initial update
         self.update_bot()
