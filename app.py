@@ -602,6 +602,154 @@ def plot_single():
             all_support_levels.extend(hardcoded_support)
             logging.debug("Using default support levels")
             
+        # Add ATR levels if available
+        if hasattr(system, 'atr_levels') and selected_ticker in system.atr_levels:
+            atr_data = system.atr_levels[selected_ticker]
+            
+            # Add ATR full value upside line (purple solid)
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=atr_data['atr_full_up'],
+                y1=atr_data['atr_full_up'],
+                line=dict(
+                    color="#673AB7",  # Purple
+                    width=1.5,
+                ),
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            # Add ATR half value upside line (purple dotted)
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=atr_data['atr_half_up'],
+                y1=atr_data['atr_half_up'],
+                line=dict(
+                    color="#673AB7",  # Purple
+                    width=1.5,
+                    dash="dot",
+                ),
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            # Add ATR full value downside line (orange solid)
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=atr_data['atr_full_down'],
+                y1=atr_data['atr_full_down'],
+                line=dict(
+                    color="#FF9800",  # Orange
+                    width=1.5,
+                ),
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            # Add ATR half value downside line (orange dotted)
+            fig.add_shape(
+                type="line",
+                x0=data.index[0],
+                x1=data.index[-1],
+                y0=atr_data['atr_half_down'],
+                y1=atr_data['atr_half_down'],
+                line=dict(
+                    color="#FF9800",  # Orange
+                    width=1.5,
+                    dash="dot",
+                ),
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            # Add annotations for ATR levels
+            fig.add_annotation(
+                x=data.index[-1],
+                y=atr_data['atr_full_up'],
+                text=f"ATR Full: ${atr_data['atr_full_up']:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="bottom",
+                font=dict(color="#673AB7", size=8),
+                bgcolor="rgba(103, 58, 183, 0.1)",
+                bordercolor="#673AB7",
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            fig.add_annotation(
+                x=data.index[-1],
+                y=atr_data['atr_half_up'],
+                text=f"ATR Half: ${atr_data['atr_half_up']:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="bottom",
+                font=dict(color="#673AB7", size=8),
+                bgcolor="rgba(103, 58, 183, 0.1)",
+                bordercolor="#673AB7",
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            fig.add_annotation(
+                x=data.index[-1],
+                y=atr_data['atr_half_down'],
+                text=f"ATR Half: ${atr_data['atr_half_down']:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="top",
+                font=dict(color="#FF9800", size=8),
+                bgcolor="rgba(255, 152, 0, 0.1)",
+                bordercolor="#FF9800",
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            fig.add_annotation(
+                x=data.index[-1],
+                y=atr_data['atr_full_down'],
+                text=f"ATR Full: ${atr_data['atr_full_down']:.2f}",
+                showarrow=False,
+                xanchor="right",
+                yanchor="top",
+                font=dict(color="#FF9800", size=8),
+                bgcolor="rgba(255, 152, 0, 0.1)",
+                bordercolor="#FF9800",
+                borderwidth=1,
+                borderpad=2,
+                opacity=0.7,
+                row=1, col=1
+            )
+            
+            # Add ATR value indicator
+            fig.add_annotation(
+                x=data.index[0],
+                y=data['High'].max(),
+                text=f"14-Day ATR: ${atr_data['atr']:.2f}",
+                showarrow=False,
+                xanchor="left",
+                yanchor="top",
+                font=dict(color="#333333", size=10, weight="bold"),
+                bgcolor="rgba(255, 255, 255, 0.8)",
+                bordercolor="#333333",
+                borderwidth=1,
+                borderpad=3,
+                opacity=0.9,
+                row=1, col=1
+            )
+            
         # Add horizontal lines for resistance levels
         displayed_count = 0
         for i, level in enumerate(all_resistance_levels):

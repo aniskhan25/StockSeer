@@ -490,6 +490,32 @@ class StockSignalSystem:
             data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()  # Add 50-period EMA
             data['Bullish'] = data['Close'] > data['Open']
             
+            # Calculate Average True Range (ATR) - 14 period
+            atr_indicator = AverageTrueRange(high=data['High'], low=data['Low'], close=data['Close'], window=14)
+            data['ATR_14'] = atr_indicator.average_true_range()
+            
+            # Calculate Half and Full ATR values from last ATR
+            last_atr = data['ATR_14'].iloc[-1]
+            if isinstance(last_atr, pd.Series):
+                last_atr = last_atr.item()
+            
+            # Store ATR levels for plotting
+            current_close = data['Close'].iloc[-1]
+            if isinstance(current_close, pd.Series):
+                current_close = current_close.item()
+                
+            # Store ATR levels dictionary for this ticker
+            self.atr_levels = getattr(self, 'atr_levels', {})
+            self.atr_levels[ticker] = {
+                'atr': last_atr,
+                'atr_half_up': current_close + (last_atr * 0.5),
+                'atr_full_up': current_close + last_atr,
+                'atr_half_down': current_close - (last_atr * 0.5),
+                'atr_full_down': current_close - last_atr,
+            }
+            
+            logging.debug(f"Calculated 14-day ATR for {ticker}: {last_atr:.2f}")
+            
             # Detect technical resistance levels based on price history
             logging.debug(f"Detecting technical resistance levels for {ticker}")
             resistance_levels = self._detect_resistance_levels(data)
@@ -770,6 +796,10 @@ class StockSignalSystem:
                 (data['EMA_short'].shift(1) <= data['EMA_long'].shift(1))
             )
             
+            # Calculate ATR
+            atr_indicator = AverageTrueRange(high=data['High'], low=data['Low'], close=data['Close'], window=14)
+            data['ATR_14'] = atr_indicator.average_true_range()
+            
             position, entry_price, trades = 0, 0, []
             
             for date, row in data.iterrows():
@@ -798,6 +828,11 @@ class StockSignalSystem:
                 ema_50 = row['EMA_50']
                 if isinstance(ema_50, pd.Series):
                     ema_50 = ema_50.item()
+                    
+                # Get ATR value
+                atr = row['ATR_14']
+                if isinstance(atr, pd.Series):
+                    atr = atr.item()
 
                 # Now use these scalar values in your condition
                 if (position == 0 and 
@@ -809,21 +844,44 @@ class StockSignalSystem:
                     
                     position = 1
                     entry_price = close_price
-                    trades.append({'date': date, 'action': 'BUY', 'price': entry_price})
+                    # Store ATR value at entry for potential stop loss calculation
+                    entry_atr = atr
+                    stop_loss = entry_price - entry_atr  # Full ATR as stop loss
                     
-                elif (position == 1 and 
-                    not bullish and 
-                    close_price < ema_short):
-                    
-                    position = 0
-                    exit_price = close_price
-                    profit = (exit_price - entry_price) / entry_price * 100
                     trades.append({
-                        'date': date,
-                        'action': 'SELL',
-                        'price': exit_price,
-                        'profit_pct': profit
+                        'date': date, 
+                        'action': 'BUY', 
+                        'price': entry_price,
+                        'atr': entry_atr,
+                        'stop_loss': stop_loss
                     })
+                    
+                elif position == 1:
+                    # Check for stop loss hit (price dropped by full ATR from entry)
+                    stop_loss = trades[-1]['stop_loss']
+                    
+                    if close_price <= stop_loss:
+                        # Stop loss hit
+                        position = 0
+                        exit_price = close_price
+                        profit = (exit_price - entry_price) / entry_price * 100
+                        trades.append({
+                            'date': date,
+                            'action': 'STOP LOSS',
+                            'price': exit_price,
+                            'profit_pct': profit
+                        })
+                    elif (not bullish and close_price < ema_short):
+                        # Regular sell signal
+                        position = 0
+                        exit_price = close_price
+                        profit = (exit_price - entry_price) / entry_price * 100
+                        trades.append({
+                            'date': date,
+                            'action': 'SELL',
+                            'price': exit_price,
+                            'profit_pct': profit
+                        })
             
             # Close open position
             if position == 1:
@@ -841,9 +899,18 @@ class StockSignalSystem:
                 logging.info("No trades generated during backtest")
                 return self._empty_backtest_results(ticker, start_date, end_date)
                 
-            sell_trades = trades_df[trades_df['action'].str.startswith('SELL')]
+            sell_trades = trades_df[trades_df['action'].str.contains('SELL|STOP')]
             total_return = ((sell_trades['profit_pct'] / 100 + 1).prod() - 1) * 100
             buy_hold = (data['Close'].iloc[-1] - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100
+            
+            # Calculate statistics about ATR usage
+            stop_loss_hits = len(trades_df[trades_df['action'] == 'STOP LOSS'])
+            total_trades = len(sell_trades)
+            stop_loss_percentage = (stop_loss_hits / total_trades * 100) if total_trades > 0 else 0
+            
+            # Calculate average ATR at entry
+            buy_trades = trades_df[trades_df['action'] == 'BUY']
+            avg_atr = buy_trades['atr'].mean() if 'atr' in buy_trades.columns and not buy_trades.empty else 0
             
             return {
                 'ticker': ticker,
@@ -854,6 +921,9 @@ class StockSignalSystem:
                 'avg_profit': sell_trades['profit_pct'].mean() if len(sell_trades) > 0 else 0,
                 'total_return': total_return,
                 'buy_hold_return': buy_hold,
+                'stop_loss_hits': stop_loss_hits,
+                'stop_loss_percentage': stop_loss_percentage,
+                'avg_atr': avg_atr,
                 'trade_list': trades
             }
             
@@ -870,7 +940,10 @@ class StockSignalSystem:
             'win_rate': 0,
             'avg_profit': 0,
             'total_return': 0,
-            'buy_hold_return': 0
+            'buy_hold_return': 0,
+            'stop_loss_hits': 0,
+            'stop_loss_percentage': 0,
+            'avg_atr': 0
         }
 
     def run(self, mode='once', interval=None):
@@ -923,4 +996,12 @@ if __name__ == "__main__":
         logging.info("\n==== BACKTEST RESULTS ====")
         for k, v in results.items():
             if k != 'trade_list':
-                logging.info(f"{k}: {v}")
+                if k in ['avg_atr', 'stop_loss_percentage']:
+                    logging.info(f"{k}: {v:.2f}")
+                else:
+                    logging.info(f"{k}: {v}")
+        
+        # Display ATR-specific statistics
+        logging.info("\n==== ATR ANALYSIS ====")
+        logging.info(f"Average 14-day ATR: ${results['avg_atr']:.2f}")
+        logging.info(f"Stop losses triggered: {results['stop_loss_hits']} trades ({results['stop_loss_percentage']:.1f}% of all trades)")
