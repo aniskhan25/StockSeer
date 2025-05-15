@@ -292,6 +292,15 @@ def plot_single():
         flash('No tickers in your watchlist. Please add some first.', 'error')
         return redirect(url_for('index'))
     
+    # Get toggle parameters with defaults - ensure they're all true by default
+    # If they're not explicitly set to 'false', treat them as true
+    show_ema = request.values.get('show_ema') != 'false'
+    show_atr = request.values.get('show_atr') != 'false'
+    show_support = request.values.get('show_support') != 'false'
+    show_resistance = request.values.get('show_resistance') != 'false'
+    show_signals = request.values.get('show_signals') != 'false'
+    show_volume = request.values.get('show_volume') != 'false'
+    
     # Ensure data is available for the selected ticker
     data_available = True
     
@@ -329,22 +338,44 @@ def plot_single():
     if not data_available:
         return redirect(url_for('index'))
     
-    # Use the most recent 50 days of data
-    days_to_show = int(request.values.get('days', 50))
-    data = system.stock_data[selected_ticker].iloc[-days_to_show:]
+    # Use the most recent 45 days of data by default
+    days_to_show = int(request.values.get('days', 45))
     
-    # Create subplot with two rows (price/EMA and volume)
-    fig = make_subplots(
-        rows=2, 
-        cols=1, 
-        shared_xaxes=True,
-        vertical_spacing=0.05,
-        row_heights=[0.7, 0.3],
-        subplot_titles=(
-            f"{selected_ticker} Price with {system.ema_short}/{system.ema_long} EMA", 
-            "Volume"
+    # Ensure we only show the specified number of days
+    # First get the full dataset
+    full_data = system.stock_data[selected_ticker]
+    
+    # Find the last valid date (some datasets might have future dates with NaN values)
+    last_valid_idx = full_data.index.get_indexer([full_data['Close'].last_valid_index()])[0]
+    
+    # Get only the most recent days_to_show days from the last valid data point
+    data = full_data.iloc[max(0, last_valid_idx - days_to_show + 1):last_valid_idx + 1]
+    
+    # If we got fewer days than requested (e.g., at the start of a dataset), use what we have
+    if len(data) < days_to_show:
+        data = full_data.iloc[-days_to_show:]
+    
+    # Create subplot with appropriate number of rows based on volume toggle
+    if show_volume:
+        fig = make_subplots(
+            rows=2, 
+            cols=1, 
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=[0.7, 0.3],
+            subplot_titles=(
+                f"{selected_ticker} Price with {system.ema_short}/{system.ema_long} EMA", 
+                "Volume"
+            )
         )
-    )
+    else:
+        fig = make_subplots(
+            rows=1, 
+            cols=1,
+            subplot_titles=(
+                f"{selected_ticker} Price with {system.ema_short}/{system.ema_long} EMA",
+            )
+        )
     
     # Clear any existing traces and layout to ensure no residual elements
     fig.data = []
@@ -369,7 +400,7 @@ def plot_single():
     )
     
     # Add trace for 50 EMA with a gray transparent line (add this first so it's in the background)
-    if 'EMA_50' in data.columns:
+    if 'EMA_50' in data.columns and show_ema:
         fig.add_trace(
             go.Scatter(
                 x=data.index,
@@ -385,30 +416,31 @@ def plot_single():
         )
     
     # Add trace for short EMA with a blue line
-    fig.add_trace(
-        go.Scatter(
-            x=data.index,
-            y=data['EMA_short'],
-            mode='lines',
-            name=f'{system.ema_short} EMA',
-            line=dict(color='#2196F3', width=2),
-            opacity=0.8
-        ),
-        row=1, col=1
-    )
-    
-    # Add trace for long EMA with a red line
-    fig.add_trace(
-        go.Scatter(
-            x=data.index,
-            y=data['EMA_long'],
-            mode='lines',
-            name=f'{system.ema_long} EMA',
-            line=dict(color='#FF5722', width=2),
-            opacity=0.8
-        ),
-        row=1, col=1
-    )
+    if show_ema:
+        fig.add_trace(
+            go.Scatter(
+                x=data.index,
+                y=data['EMA_short'],
+                mode='lines',
+                name=f'{system.ema_short} EMA',
+                line=dict(color='#2196F3', width=2),
+                opacity=0.8
+            ),
+            row=1, col=1
+        )
+        
+        # Add trace for long EMA with a red line
+        fig.add_trace(
+            go.Scatter(
+                x=data.index,
+                y=data['EMA_long'],
+                mode='lines',
+                name=f'{system.ema_long} EMA',
+                line=dict(color='#FF5722', width=2),
+                opacity=0.8
+            ),
+            row=1, col=1
+        )
     
     # Add markers for signals specific to the selected ticker
     ticker_signals = [s for s in system.signals if s['ticker'] == selected_ticker]
@@ -427,138 +459,141 @@ def plot_single():
     logging.debug(f"Found {len(visible_signals)} visible signals for {selected_ticker} in date range {start_date} to {end_date}")
     
     # Add each signal marker
-    for signal in visible_signals:
-        marker_color = '#4CAF50' if signal['type'] == 'BUY' else '#F44336'
-        marker_symbol = 'triangle-up' if signal['type'] == 'BUY' else 'triangle-down'
-        
-        # Get price as scalar value
-        price = signal['price']
-        if isinstance(price, pd.Series):
-            price = price.item()
+    if show_signals:
+        for signal in visible_signals:
+            marker_color = '#4CAF50' if signal['type'] == 'BUY' else '#F44336'
+            marker_symbol = 'triangle-up' if signal['type'] == 'BUY' else 'triangle-down'
             
-        fig.add_trace(
-            go.Scatter(
-                x=[signal['date']],
-                y=[price],
-                mode='markers+text',
-                marker=dict(
-                    color=marker_color, 
-                    size=20, 
-                    symbol=marker_symbol,
-                    line=dict(width=2, color='black')
-                ),
-                text=[signal['type']],
-                textposition='top center',
-                name=f"{signal['type']} @ {price:.2f}",
-                hoverinfo='text',
-                hovertext=f"{signal['type']} Signal on {signal['date'].strftime('%Y-%m-%d')}<br>Price: ${price:.2f}",
-                showlegend=False
-            ),
-            row=1, col=1
-        )
-        
-        # Add stop loss marker for BUY signals (3% below close price)
-        if signal['type'] == 'BUY':
-            stop_loss_price = price * 0.97  # 3% below the buy price
-            
-            # Add the stop loss marker
+            # Get price as scalar value
+            price = signal['price']
+            if isinstance(price, pd.Series):
+                price = price.item()
+                
             fig.add_trace(
                 go.Scatter(
                     x=[signal['date']],
-                    y=[stop_loss_price],
-                    mode='markers+text',
+                    y=[price],
+                    mode='markers',  # Only markers, no text
                     marker=dict(
-                        color='#9C27B0',  # Purple color for stop loss
-                        size=15, 
-                        symbol='circle',
+                        color=marker_color, 
+                        size=20, 
+                        symbol=marker_symbol,
                         line=dict(width=2, color='black')
                     ),
-                    text=['STOP'],
-                    textposition='bottom center',
-                    name=f"Stop Loss @ {stop_loss_price:.2f}",
+                    text=None,  # Explicitly set text to None
+                    textposition=None,  # Remove text positioning
+                    name=f"{signal['type']} @ {price:.2f}",
                     hoverinfo='text',
-                    hovertext=f"Stop Loss: ${stop_loss_price:.2f} (3% below entry)",
+                    hovertext=f"{signal['type']} Signal on {signal['date'].strftime('%Y-%m-%d')}<br>Price: ${price:.2f}",
                     showlegend=False
                 ),
                 row=1, col=1
             )
             
-            # Add dashed line connecting the buy signal to the stop loss
-            fig.add_trace(
-                go.Scatter(
-                    x=[signal['date'], signal['date']],
-                    y=[price, stop_loss_price],
-                    mode='lines',
-                    line=dict(color='#9C27B0', width=1, dash='dash'),
-                    showlegend=False,
-                    hoverinfo='none'
-                ),
-                row=1, col=1
-            )
+            # Add stop loss marker for BUY signals (3% below close price)
+            if signal['type'] == 'BUY':
+                stop_loss_price = price * 0.97  # 3% below the buy price
+                
+                # Add the stop loss marker - explicitly ensuring no text
+                fig.add_trace(
+                    go.Scatter(
+                        x=[signal['date']],
+                        y=[stop_loss_price],
+                        mode='markers', 
+                        marker=dict(
+                            color='#9C27B0',  # Purple color for stop loss
+                            size=15, 
+                            symbol='circle',
+                            line=dict(width=2, color='black')
+                        ),
+                        text=None,  # Explicitly set text to None
+                        textposition=None,  # Remove text positioning
+                        name=f"Stop Loss @ {stop_loss_price:.2f}",
+                        hoverinfo='text',
+                        hovertext=f"Stop Loss: ${stop_loss_price:.2f} (3% below entry)",
+                        showlegend=False
+                    ),
+                    row=1, col=1
+                )
+                
+                # Add dashed line connecting the buy signal to the stop loss
+                fig.add_trace(
+                    go.Scatter(
+                        x=[signal['date'], signal['date']],
+                        y=[price, stop_loss_price],
+                        mode='lines',
+                        line=dict(color='#9C27B0', width=1, dash='dash'),
+                        showlegend=False,
+                        hoverinfo='none'
+                    ),
+                    row=1, col=1
+                )
     
-    # Add volume as a bar chart
-    # Fix: Compare scalar values from each row
-    colors = []
-    normalized_volumes = []
-    max_volume = data['Volume'].max()
-    
-    for i, row in data.iterrows():
-        close_val = row['Close'].item() if isinstance(row['Close'], pd.Series) else row['Close']
-        open_val = row['Open'].item() if isinstance(row['Open'], pd.Series) else row['Open']
-        colors.append('#26a69a' if close_val >= open_val else '#ef5350')
+    # Add volume as a bar chart if enabled
+    if show_volume:
+        # Fix: Compare scalar values from each row
+        colors = []
+        normalized_volumes = []
+        max_volume = data['Volume'].max()
         
-        # Get volume
-        vol = row['Volume']
-        if isinstance(vol, pd.Series):
-            vol = vol.item()
-        normalized_volumes.append(vol)
+        for i, row in data.iterrows():
+            close_val = row['Close'].item() if isinstance(row['Close'], pd.Series) else row['Close']
+            open_val = row['Open'].item() if isinstance(row['Open'], pd.Series) else row['Open']
+            colors.append('#26a69a' if close_val >= open_val else '#ef5350')
+            
+            # Get volume
+            vol = row['Volume']
+            if isinstance(vol, pd.Series):
+                vol = vol.item()
+            normalized_volumes.append(vol)
+        
+        # Add volume bars to bottom subplot
+        fig.add_trace(
+            go.Bar(
+                x=data.index,
+                y=normalized_volumes,
+                name='Volume',
+                marker_color=colors,
+                opacity=0.8,
+                hoverinfo='text',
+                hovertext=[f"Volume: {int(vol):,}" for vol in normalized_volumes],
+            ),
+            row=2, col=1
+        )
+        
+        # Add a horizontal line for the minimum volume threshold
+        fig.add_shape(
+            type="line",
+            x0=data.index[0],
+            x1=data.index[-1],
+            y0=system.min_volume,
+            y1=system.min_volume,
+            line=dict(
+                color="#FF9800",
+                width=1.5,
+                dash="dot",
+            ),
+            row=2, col=1
+        )
+        
+        # Add annotation for min volume threshold
+        fig.add_annotation(
+            x=data.index[-1],
+            y=system.min_volume,
+            text=f"Min Volume: {system.min_volume/1000000:.0f}M",
+            showarrow=False,
+            xanchor="right",
+            yanchor="bottom",
+            xshift=0,
+            yshift=5,
+            bgcolor="rgba(255, 255, 255, 0.8)",
+            bordercolor="#FF9800",
+            borderwidth=1,
+            borderpad=4,
+            font=dict(color="#FF9800", size=10),
+            row=2, col=1
+        )
     
-    # Add volume bars to bottom subplot
-    fig.add_trace(
-        go.Bar(
-            x=data.index,
-            y=normalized_volumes,
-            name='Volume',
-            marker_color=colors,
-            opacity=0.8,
-            hoverinfo='text',
-            hovertext=[f"Volume: {int(vol):,}" for vol in normalized_volumes],
-        ),
-        row=2, col=1
-    )
-    
-    # Add a horizontal line for the minimum volume threshold
-    fig.add_shape(
-        type="line",
-        x0=data.index[0],
-        x1=data.index[-1],
-        y0=system.min_volume,
-        y1=system.min_volume,
-        line=dict(
-            color="#FF9800",
-            width=1.5,
-            dash="dot",
-        ),
-        row=2, col=1
-    )
-    
-    # Add annotation for min volume threshold
-    fig.add_annotation(
-        x=data.index[-1],
-        y=system.min_volume,
-        text=f"Min Volume: {system.min_volume/1000000:.0f}M",
-        showarrow=False,
-        xanchor="right",
-        yanchor="bottom",
-        xshift=0,
-        yshift=5,
-        bgcolor="rgba(255, 255, 255, 0.8)",
-        bordercolor="#FF9800",
-        borderwidth=1,
-        borderpad=4,
-        font=dict(color="#FF9800", size=10),
-        row=2, col=1
-    )
     
     # Add resistance and support levels if available
     try:
@@ -602,8 +637,8 @@ def plot_single():
             all_support_levels.extend(hardcoded_support)
             logging.debug("Using default support levels")
             
-        # Add ATR levels if available
-        if hasattr(system, 'atr_levels') and selected_ticker in system.atr_levels:
+        # Add ATR levels if enabled
+        if show_atr and hasattr(system, 'atr_levels') and selected_ticker in system.atr_levels:
             atr_data = system.atr_levels[selected_ticker]
             
             # Add ATR full value upside line (purple solid)
@@ -751,124 +786,126 @@ def plot_single():
             )
             
         # Add horizontal lines for resistance levels
-        displayed_count = 0
-        for i, level in enumerate(all_resistance_levels):
-            # Limit the number of resistance levels to display (maximum 3)
-            if displayed_count >= 3:
-                continue
-                
-            # Filter significant resistance levels by spread (at least 2% apart)
-            if i > 0 and all_resistance_levels[i-1] > 0:
-                # Skip if too close to previous level
-                prev_level = all_resistance_levels[i-1]
-                percent_diff = abs(level - prev_level) / prev_level
-                if percent_diff < 0.02:
+        if show_resistance:
+            displayed_count = 0
+            for i, level in enumerate(all_resistance_levels):
+                # Limit the number of resistance levels to display (maximum 3)
+                if displayed_count >= 3:
                     continue
-            
-            # Standard technical resistance - red dashed lines
-            line_color = "#FF0000"  # Red
-            line_width = 1  # Thinner line
-            line_dash = "dash"  # Dashed line
-            line_opacity = 0.4  # More transparent
-            label_prefix = "R"  # Resistance
-            label_color = "#FF0000"
-            bg_color = "rgba(255, 0, 0, 0.1)"
-            border_color = "#FF0000"
-            
-            # Add the horizontal line
-            fig.add_shape(
-                type="line",
-                x0=data.index[0],
-                x1=data.index[-1],
-                y0=level,
-                y1=level,
-                line=dict(
-                    color=line_color,
-                    width=line_width,
-                    dash=line_dash,
-                ),
-                opacity=line_opacity,
-                row=1, col=1
-            )
-            
-            # Add annotation for the resistance level
-            fig.add_annotation(
-                x=data.index[-1],
-                y=level,
-                text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
-                showarrow=False,
-                xanchor="right",
-                yanchor="bottom",
-                font=dict(color=label_color, size=8),
-                bgcolor=bg_color,
-                bordercolor=border_color,
-                borderwidth=1,
-                borderpad=2,
-                opacity=0.7,
-                row=1, col=1
-            )
-            
-            displayed_count += 1
+                    
+                # Filter significant resistance levels by spread (at least 2% apart)
+                if i > 0 and all_resistance_levels[i-1] > 0:
+                    # Skip if too close to previous level
+                    prev_level = all_resistance_levels[i-1]
+                    percent_diff = abs(level - prev_level) / prev_level
+                    if percent_diff < 0.02:
+                        continue
+                
+                # Standard technical resistance - red dashed lines
+                line_color = "#FF0000"  # Red
+                line_width = 1  # Thinner line
+                line_dash = "dash"  # Dashed line
+                line_opacity = 0.4  # More transparent
+                label_prefix = "R"  # Resistance
+                label_color = "#FF0000"
+                bg_color = "rgba(255, 0, 0, 0.1)"
+                border_color = "#FF0000"
+                
+                # Add the horizontal line
+                fig.add_shape(
+                    type="line",
+                    x0=data.index[0],
+                    x1=data.index[-1],
+                    y0=level,
+                    y1=level,
+                    line=dict(
+                        color=line_color,
+                        width=line_width,
+                        dash=line_dash,
+                    ),
+                    opacity=line_opacity,
+                    row=1, col=1
+                )
+                
+                # Add annotation for the resistance level
+                fig.add_annotation(
+                    x=data.index[-1],
+                    y=level,
+                    text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
+                    showarrow=False,
+                    xanchor="right",
+                    yanchor="bottom",
+                    font=dict(color=label_color, size=8),
+                    bgcolor=bg_color,
+                    bordercolor=border_color,
+                    borderwidth=1,
+                    borderpad=2,
+                    opacity=0.7,
+                    row=1, col=1
+                )
+                
+                displayed_count += 1
             
         # Add horizontal lines for support levels
-        displayed_count = 0
-        for i, level in enumerate(all_support_levels):
-            # Limit the number of support levels to display (maximum 3)
-            if displayed_count >= 3:
-                continue
-                
-            # Filter significant support levels by spread (at least 2% apart)
-            if i > 0 and all_support_levels[i-1] > 0:
-                # Skip if too close to previous level
-                prev_level = all_support_levels[i-1]
-                percent_diff = abs(level - prev_level) / prev_level
-                if percent_diff < 0.02:
+        if show_support:
+            displayed_count = 0
+            for i, level in enumerate(all_support_levels):
+                # Limit the number of support levels to display (maximum 3)
+                if displayed_count >= 3:
                     continue
-            
-            # Standard technical support - green dashed lines
-            line_color = "#4CAF50"  # Green
-            line_width = 1  # Thinner line
-            line_dash = "dash"  # Dashed line
-            line_opacity = 0.4  # More transparent
-            label_prefix = "S"  # Support
-            label_color = "#4CAF50"
-            bg_color = "rgba(76, 175, 80, 0.1)"
-            border_color = "#4CAF50"
-            
-            # Add the horizontal line
-            fig.add_shape(
-                type="line",
-                x0=data.index[0],
-                x1=data.index[-1],
-                y0=level,
-                y1=level,
-                line=dict(
-                    color=line_color,
-                    width=line_width,
-                    dash=line_dash,
-                ),
-                opacity=line_opacity,
-                row=1, col=1
-            )
-            
-            # Add annotation for the support level
-            fig.add_annotation(
-                x=data.index[-1],
-                y=level,
-                text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
-                showarrow=False,
-                xanchor="right",
-                yanchor="top",  # Place below the line
-                font=dict(color=label_color, size=8),
-                bgcolor=bg_color,
-                bordercolor=border_color,
-                borderwidth=1,
-                borderpad=2,
-                opacity=0.7,
-                row=1, col=1
-            )
-            
-            displayed_count += 1
+                    
+                # Filter significant support levels by spread (at least 2% apart)
+                if i > 0 and all_support_levels[i-1] > 0:
+                    # Skip if too close to previous level
+                    prev_level = all_support_levels[i-1]
+                    percent_diff = abs(level - prev_level) / prev_level
+                    if percent_diff < 0.02:
+                        continue
+                
+                # Standard technical support - green dashed lines
+                line_color = "#4CAF50"  # Green
+                line_width = 1  # Thinner line
+                line_dash = "dash"  # Dashed line
+                line_opacity = 0.4  # More transparent
+                label_prefix = "S"  # Support
+                label_color = "#4CAF50"
+                bg_color = "rgba(76, 175, 80, 0.1)"
+                border_color = "#4CAF50"
+                
+                # Add the horizontal line
+                fig.add_shape(
+                    type="line",
+                    x0=data.index[0],
+                    x1=data.index[-1],
+                    y0=level,
+                    y1=level,
+                    line=dict(
+                        color=line_color,
+                        width=line_width,
+                        dash=line_dash,
+                    ),
+                    opacity=line_opacity,
+                    row=1, col=1
+                )
+                
+                # Add annotation for the support level
+                fig.add_annotation(
+                    x=data.index[-1],
+                    y=level,
+                    text=f"{label_prefix}{displayed_count+1}: ${level:.2f}",
+                    showarrow=False,
+                    xanchor="right",
+                    yanchor="top",  # Place below the line
+                    font=dict(color=label_color, size=8),
+                    bgcolor=bg_color,
+                    bordercolor=border_color,
+                    borderwidth=1,
+                    borderpad=2,
+                    opacity=0.7,
+                    row=1, col=1
+                )
+                
+                displayed_count += 1
         
     except Exception as e:
         logging.error(f"Error adding resistance and support levels: {e}", exc_info=True)
@@ -876,7 +913,7 @@ def plot_single():
     # Update layout with modern styling
     fig.update_layout(
         title=dict(
-            text=f"{selected_ticker} - Technical Analysis",
+            text=f"{selected_ticker} - Technical Analysis (Last {days_to_show} Days)",
             font=dict(size=24, color='#444', family="Arial, sans-serif"),
             x=0.5
         ),
@@ -898,12 +935,18 @@ def plot_single():
     )
     
     # Configure X-axis (date)
+    # Calculate the start and end dates for the rangeslider to only show the last 45 days
     fig.update_xaxes(
         title='Date',
         showgrid=True,
         gridcolor='#f0f0f0',
         tickfont=dict(size=10),
-        rangeslider=dict(visible=True, thickness=0.05),
+        rangeslider=dict(
+            visible=True, 
+            thickness=0.05,
+            range=[data.index[0], data.index[-1]]  # Set the slider range to match the data range
+        ),
+        range=[data.index[0], data.index[-1]],  # Set the initial view range to match the data
         row=1, col=1
     )
     
@@ -932,9 +975,18 @@ def plot_single():
     plot_div = plot(fig, output_type='div', include_plotlyjs=True)
     
     watchlist = load_watchlist()
-    return render_template('plot_single.html', plot_div=plot_div, tickers=watchlist, 
-                          selected_ticker=selected_ticker, days=days_to_show, 
-                          system=system)
+    return render_template('plot_single.html', 
+                          plot_div=plot_div, 
+                          tickers=watchlist, 
+                          selected_ticker=selected_ticker, 
+                          days=days_to_show, 
+                          system=system,
+                          show_ema=show_ema,
+                          show_atr=show_atr,
+                          show_support=show_support,
+                          show_resistance=show_resistance,
+                          show_signals=show_signals,
+                          show_volume=show_volume)
 
 @app.route('/plot', methods=['GET'])
 def plot_combined():
@@ -955,8 +1007,12 @@ def plot_combined():
         if not selected_tickers:
             selected_tickers = [watchlist[0]]
     
-    # Get the time period to display
-    days_to_show = int(request.args.get('days', 30))
+    # We're showing full data, so we just need days_to_show for the title
+    # (The actual data shown will be the full dataset regardless of this value)
+    days_to_show = int(request.args.get('days', 10000))  # Default to a very large number to show all data
+    
+    # Log the days parameter for debugging
+    logging.info(f"Multi-ticker view requested with days_to_show={days_to_show}")
     
     # Create a figure with one subplot per ticker
     n_tickers = len(selected_tickers)
@@ -998,8 +1054,11 @@ def plot_combined():
                 logging.warning(f"Could not fetch data for {ticker}")
                 continue
             
-        # Use the most recent data for this ticker
-        data = system.stock_data[ticker].iloc[-days_to_show:]
+        # Use all available data for this ticker (full extent)
+        data = system.stock_data[ticker]
+        
+        # Debug info - log how much data we're actually using
+        logging.info(f"Ticker {ticker}: Using {len(data)} data points from {data.index[0]} to {data.index[-1]}")
         
         # Add candlestick chart
         fig.add_trace(
@@ -1010,21 +1069,43 @@ def plot_combined():
                 low=data['Low'],
                 close=data['Close'],
                 name=ticker,
-                increasing_line_color='green',
-                decreasing_line_color='red',
+                increasing_line_color='#26a69a',  # Match single-ticker view styling
+                increasing_fillcolor='#26a69a',
+                decreasing_line_color='#ef5350',
+                decreasing_fillcolor='#ef5350',
+                line=dict(width=1),
+                whiskerwidth=0.5,
                 showlegend=False
             ),
             row=i+1, col=1
         )
         
-        # Add EMAs
+        # Add trace for 50 EMA with a gray transparent line if available
+        if 'EMA_50' in data.columns:
+            fig.add_trace(
+                go.Scatter(
+                    x=data.index,
+                    y=data['EMA_50'],
+                    mode='lines',
+                    name='50 EMA',
+                    line=dict(color='#9E9E9E', width=1.5),
+                    opacity=0.3,
+                    hoverinfo='text',
+                    hovertext=[f"50 EMA: ${val:.2f}" for val in data['EMA_50']],
+                    showlegend=(i == 0)  # Only show in legend for first ticker
+                ),
+                row=i+1, col=1
+            )
+        
+        # Add EMAs with consistent colors
         fig.add_trace(
             go.Scatter(
                 x=data.index,
                 y=data['EMA_short'],
                 mode='lines',
                 name=f'{system.ema_short} EMA',
-                line=dict(color='blue', width=1.5),
+                line=dict(color='#2196F3', width=2),  # Blue color matching single view
+                opacity=0.8,
                 showlegend=(i == 0)  # Only show in legend for first ticker
             ),
             row=i+1, col=1
@@ -1036,53 +1117,125 @@ def plot_combined():
                 y=data['EMA_long'],
                 mode='lines',
                 name=f'{system.ema_long} EMA',
-                line=dict(color='red', width=1.5),
+                line=dict(color='#FF5722', width=2),  # Orange color matching single view
+                opacity=0.8,
                 showlegend=(i == 0)  # Only show in legend for first ticker
             ),
             row=i+1, col=1
         )
         
-        # Add signals specific to this ticker
-        ticker_signals = [s for s in system.signals if s['ticker'] == ticker and s['date'] in data.index]
-        for signal in ticker_signals:
-            marker_color = 'green' if signal['type'] == 'BUY' else 'red'
+        # Add all signals for this ticker
+        visible_signals = []
+        for signal in system.signals:
+            if signal['ticker'] == ticker:
+                visible_signals.append(signal)
+                
+        # Add signal markers (consistent with single-ticker view - no text labels)
+        for signal in visible_signals:
+            marker_color = '#4CAF50' if signal['type'] == 'BUY' else '#F44336'  # Green/Red colors matching single view
             marker_symbol = 'triangle-up' if signal['type'] == 'BUY' else 'triangle-down'
+            
+            # Get price as scalar value
+            price = signal['price']
+            if isinstance(price, pd.Series):
+                price = price.item()
+                
             fig.add_trace(
                 go.Scatter(
                     x=[signal['date']],
-                    y=[signal['price']],
-                    mode='markers+text',
-                    marker=dict(color=marker_color, size=12, symbol=marker_symbol),
-                    text=[signal['type']],
-                    textposition='top center',
-                    name=f"{ticker} {signal['type']}",
+                    y=[price],
+                    mode='markers',  # Only markers, no text
+                    marker=dict(
+                        color=marker_color, 
+                        size=15, 
+                        symbol=marker_symbol,
+                        line=dict(width=1.5, color='black')
+                    ),
+                    text=None,  # Explicitly set text to None
+                    textposition=None,  # Remove text positioning
+                    name=f"{signal['type']} @ {price:.2f}",
+                    hoverinfo='text',
+                    hovertext=f"{signal['type']} Signal on {signal['date'].strftime('%Y-%m-%d')}<br>Price: ${price:.2f}",
                     showlegend=False
                 ),
                 row=i+1, col=1
             )
     
-    # Update layout
+    # Explicitly set the widest possible date range for all subplots
+    # Define a date range that's guaranteed to be wider than any stock data
+    fallback_start_date = datetime.datetime(2000, 1, 1)  # Far in the past
+    fallback_end_date = datetime.datetime.now() + datetime.timedelta(days=365)  # Far in the future
+    
+    # Update layout with modern styling matching the single-ticker view
+    # IMPORTANT: Do not set any xaxis constraints in the main layout
     fig.update_layout(
-        title='Stock Comparison - Technical Analysis',
+        title=dict(
+            text=f'Stock Comparison - Technical Analysis (Full Data)',
+            font=dict(size=24, color='#444', family="Arial, sans-serif"),
+            x=0.5
+        ),
         height=300 * n_tickers,
+        paper_bgcolor='#f8f9fa',
+        plot_bgcolor='#ffffff',
         legend=dict(
             orientation='h',
             yanchor='bottom',
             y=1.02,
             xanchor='center',
-            x=0.5
+            x=0.5,
+            bgcolor='rgba(255, 255, 255, 0.8)',
+            bordercolor='#E0E0E0',
+            borderwidth=1
         ),
-        xaxis=dict(
-            rangeslider=dict(visible=False),
-            type='date'
-        )
+        hovermode='x unified',
+        margin=dict(l=60, r=60, t=80, b=60),
+        # Explicitly indicate we want no constraints for axes
+        xaxis_autorange=True,
+        xaxis_constrain=False
     )
     
-    # Update y-axes
+    # Update all x-axes with styling and FORCE full extent
+    for i in range(1, n_tickers + 1):
+        # Find the actual data range for this ticker
+        if i <= len(selected_tickers):
+            ticker = selected_tickers[i-1]
+            if ticker in system.stock_data and not system.stock_data[ticker].empty:
+                ticker_data = system.stock_data[ticker]
+                start_date = ticker_data.index[0]
+                end_date = ticker_data.index[-1]
+                # Log the actual range we're setting
+                logging.info(f"Setting x-axis range for {ticker}: {start_date} to {end_date}")
+            else:
+                # Use fallback dates if no data
+                start_date = fallback_start_date
+                end_date = fallback_end_date
+        else:
+            # Use fallback dates if index out of range
+            start_date = fallback_start_date
+            end_date = fallback_end_date
+        
+        # Force the range to show ALL data
+        fig.update_xaxes(
+            title='Date',
+            showgrid=True,
+            gridcolor='#f0f0f0',
+            tickfont=dict(size=10),
+            rangeslider=dict(visible=False),  # No rangeslider in the comparison view
+            type='date',
+            range=[start_date, end_date],  # EXPLICITLY set range to full data
+            autorange=False,  # Disable autorange to ensure our range is used
+            row=i, col=1
+        )
+
+    # Update y-axes with consistent styling matching single-ticker view
     for i in range(1, n_tickers + 1):
         fig.update_yaxes(
             title='Price ($)',
+            tickprefix='$',
             tickformat='.2f',
+            showgrid=True,
+            gridcolor='#f0f0f0',
+            zeroline=False,
             row=i, col=1
         )
     

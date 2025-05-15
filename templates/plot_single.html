@@ -193,6 +193,68 @@
             margin-right: 8px;
             font-size: 20px;
         }
+        
+        /* Toggle controls styling */
+        .toggle-controls {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        
+        .toggle-controls h4 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+        
+        .toggle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+        }
+        
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            transition: background-color 0.2s;
+        }
+        
+        .toggle-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .toggle-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        
+        .toggle-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .toggle-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid #ccc;
+            color: #555;
+        }
+        
+        .btn-outline:hover {
+            background-color: #f0f0f0;
+        }
     </style>
 </head>
 <body>
@@ -225,55 +287,45 @@
                         <button type="submit" class="btn btn-primary">Update Chart</button>
                     </div>
                 </div>
+                
+                <div class="toggle-controls">
+                    <h4>Chart Elements:</h4>
+                    <div class="toggle-grid">
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_ema" value="true" checked id="toggle-ema">
+                            <span>EMAs</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_atr" value="true" checked id="toggle-atr">
+                            <span>ATR Levels</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_support" value="true" checked id="toggle-support">
+                            <span>Support Levels</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_resistance" value="true" checked id="toggle-resistance">
+                            <span>Resistance Levels</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_signals" value="true" checked id="toggle-signals">
+                            <span>Trade Signals</span>
+                        </label>
+                        <label class="toggle-item">
+                            <input type="checkbox" name="show_volume" value="true" checked id="toggle-volume">
+                            <span>Volume Panel</span>
+                        </label>
+                    </div>
+                    <div class="toggle-actions">
+                        <button type="button" class="btn btn-outline" id="reset-toggles">Reset All Elements</button>
+                    </div>
+                </div>
             </form>
         </div>
         
         <div class="chart-container">
             <!-- Embed the Plotly chart -->
             {{ plot_div|safe }}
-            
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #26a69a;"></div>
-                    <span>Bullish Candle (Close > Open)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #ef5350;"></div>
-                    <span>Bearish Candle (Close < Open)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #2196F3;"></div>
-                    <span>{{ system.ema_short }} EMA (Fast)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #FF5722;"></div>
-                    <span>{{ system.ema_long }} EMA (Slow)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #9E9E9E; opacity: 0.3;"></div>
-                    <span>50 EMA (Reference)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #9C27B0;"></div>
-                    <span>Stop Loss (3% below entry)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #673AB7;"></div>
-                    <span>ATR Up (Full & Half)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #FF9800;"></div>
-                    <span>ATR Down (Full & Half)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #FF0000; opacity: 0.4;"></div>
-                    <span>Technical Resistance (Price History)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #4CAF50; opacity: 0.4;"></div>
-                    <span>Technical Support (Price History)</span>
-                </div>
-            </div>
             
             <div class="signal-info">
                 <div class="signal-badge signal-buy">
@@ -314,5 +366,245 @@
             </div>
         </div>
     </div>
+    
+    <script>
+        // JavaScript for toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get the Plotly chart div element
+            const plotDiv = document.querySelector('.js-plotly-plot');
+            if (!plotDiv) return; // Exit if no plot is available
+            
+            // Toggle form submission event - submit the form when toggles change
+            const toggleCheckboxes = document.querySelectorAll('.toggle-item input[type="checkbox"]');
+            toggleCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    // Set the value attribute correctly based on checked state
+                    this.value = this.checked ? 'true' : 'false';
+                    
+                    // Apply the client-side update for immediate feedback
+                    applyToggleEffect(this.id, this.checked);
+                    
+                    // We'll apply changes locally only without submitting the form
+                    // This prevents page reload and losing toggle states
+                });
+            });
+            
+            // Function to apply toggle effects immediately
+            function applyToggleEffect(toggleId, isChecked) {
+                switch(toggleId) {
+                    case 'toggle-ema':
+                        toggleEMAs(isChecked);
+                        break;
+                    case 'toggle-atr':
+                        toggleATR(isChecked);
+                        break;
+                    case 'toggle-support':
+                        toggleSupport(isChecked);
+                        break;
+                    case 'toggle-resistance':
+                        toggleResistance(isChecked);
+                        break;
+                    case 'toggle-signals':
+                        toggleSignals(isChecked);
+                        break;
+                    case 'toggle-volume':
+                        toggleVolume(isChecked);
+                        break;
+                }
+            }
+            
+            // Store the original state of elements to allow proper toggling
+            const originalState = {
+                emaTraces: [],
+                atrElements: { shapes: [], annotations: [] },
+                supportElements: { shapes: [], annotations: [] },
+                resistanceElements: { shapes: [], annotations: [] },
+                signalTraces: [],
+                volumeTraces: []
+            };
+            
+            // Function to initialize the original state (called once on page load)
+            function initOriginalState() {
+                // Store EMA traces
+                const data = plotDiv.data || [];
+                for (let i = 0; i < data.length; i++) {
+                    const trace = data[i];
+                    if (trace.mode === 'lines' && trace.line) {
+                        if (trace.line.color === '#2196F3' || trace.line.color === '#FF5722' || trace.line.color === '#9E9E9E') {
+                            originalState.emaTraces.push(i);
+                        }
+                    } else if (trace.mode && trace.mode.includes('markers')) {
+                        originalState.signalTraces.push(i);
+                    } else if (trace.type === 'bar') {
+                        originalState.volumeTraces.push(i);
+                    }
+                }
+                
+                // Store shapes and annotations
+                const shapes = plotDiv._fullLayout.shapes || [];
+                const annotations = plotDiv._fullLayout.annotations || [];
+                
+                for (let i = 0; i < shapes.length; i++) {
+                    const shape = shapes[i];
+                    if (!shape.line) continue;
+                    
+                    if (shape.line.color === "#673AB7" || shape.line.color === "#FF9800") {
+                        originalState.atrElements.shapes.push(i);
+                    } else if (shape.line.color === "#4CAF50") {
+                        originalState.supportElements.shapes.push(i);
+                    } else if (shape.line.color === "#FF0000") {
+                        originalState.resistanceElements.shapes.push(i);
+                    }
+                }
+                
+                for (let i = 0; i < annotations.length; i++) {
+                    const ann = annotations[i];
+                    if (!ann.text) continue;
+                    
+                    if (ann.text.includes("ATR") || ann.text.includes("14-Day ATR")) {
+                        originalState.atrElements.annotations.push(i);
+                    } else if (ann.text.includes("S") && !ann.text.includes("ATR") && !ann.text.includes("STOP")) {
+                        originalState.supportElements.annotations.push(i);
+                    } else if (ann.text.includes("R") && !ann.text.includes("ATR")) {
+                        originalState.resistanceElements.annotations.push(i);
+                    }
+                }
+                
+                console.log("Original state initialized:", originalState);
+            }
+            
+            // Call once to initialize
+            initOriginalState();
+            
+            // Toggle EMAs visibility
+            function toggleEMAs(isVisible) {
+                // Use the stored indices for EMA traces
+                if (originalState.emaTraces.length > 0) {
+                    console.log("Toggling EMAs to:", isVisible, "indices:", originalState.emaTraces);
+                    Plotly.restyle(plotDiv, {'visible': isVisible}, originalState.emaTraces);
+                }
+            }
+            
+            // Toggle ATR lines and annotations
+            function toggleATR(isVisible) {
+                const updates = {};
+                
+                // Update shapes (ATR lines)
+                originalState.atrElements.shapes.forEach(i => {
+                    updates[`shapes[${i}].visible`] = isVisible;
+                });
+                
+                // Update annotations
+                originalState.atrElements.annotations.forEach(i => {
+                    updates[`annotations[${i}].visible`] = isVisible;
+                });
+                
+                if (Object.keys(updates).length > 0) {
+                    console.log("Toggling ATR to:", isVisible, "updates:", updates);
+                    Plotly.relayout(plotDiv, updates);
+                }
+            }
+            
+            // Toggle support levels
+            function toggleSupport(isVisible) {
+                const updates = {};
+                
+                // Update shapes (support lines)
+                originalState.supportElements.shapes.forEach(i => {
+                    updates[`shapes[${i}].visible`] = isVisible;
+                });
+                
+                // Update annotations
+                originalState.supportElements.annotations.forEach(i => {
+                    updates[`annotations[${i}].visible`] = isVisible;
+                });
+                
+                if (Object.keys(updates).length > 0) {
+                    console.log("Toggling Support to:", isVisible, "updates:", updates);
+                    Plotly.relayout(plotDiv, updates);
+                }
+            }
+            
+            // Toggle resistance levels
+            function toggleResistance(isVisible) {
+                const updates = {};
+                
+                // Update shapes (resistance lines)
+                originalState.resistanceElements.shapes.forEach(i => {
+                    updates[`shapes[${i}].visible`] = isVisible;
+                });
+                
+                // Update annotations
+                originalState.resistanceElements.annotations.forEach(i => {
+                    updates[`annotations[${i}].visible`] = isVisible;
+                });
+                
+                if (Object.keys(updates).length > 0) {
+                    console.log("Toggling Resistance to:", isVisible, "updates:", updates);
+                    Plotly.relayout(plotDiv, updates);
+                }
+            }
+            
+            // Toggle signals
+            function toggleSignals(isVisible) {
+                // Use the stored indices for signal traces
+                if (originalState.signalTraces.length > 0) {
+                    console.log("Toggling Signals to:", isVisible, "indices:", originalState.signalTraces);
+                    Plotly.restyle(plotDiv, {'visible': isVisible}, originalState.signalTraces);
+                }
+            }
+            
+            // Toggle volume panel
+            function toggleVolume(isVisible) {
+                // First handle trace visibility
+                if (originalState.volumeTraces.length > 0) {
+                    console.log("Toggling Volume traces to:", isVisible, "indices:", originalState.volumeTraces);
+                    Plotly.restyle(plotDiv, {'visible': isVisible}, originalState.volumeTraces);
+                }
+                
+                // Now handle layout changes
+                const volumeUpdates = {};
+                
+                if (isVisible) {
+                    // Show volume pane
+                    volumeUpdates['xaxis2.visible'] = true;
+                    volumeUpdates['yaxis2.visible'] = true;
+                    volumeUpdates['grid.rows'] = 2;
+                    volumeUpdates['grid.roworder'] = 'top to bottom';
+                    volumeUpdates['height'] = 800; // Restore full height
+                } else {
+                    // Hide volume pane
+                    volumeUpdates['xaxis2.visible'] = false;
+                    volumeUpdates['yaxis2.visible'] = false;
+                    volumeUpdates['grid.rows'] = 1;
+                    volumeUpdates['height'] = 600; // Reduce height when volume is hidden
+                }
+                
+                console.log("Toggling Volume layout to:", isVisible, "updates:", volumeUpdates);
+                Plotly.relayout(plotDiv, volumeUpdates);
+            }
+            
+            // Apply initial Toggle UI settings to make sure UI and chart are in sync
+            document.querySelectorAll('.toggle-item input[type="checkbox"]').forEach(checkbox => {
+                // Apply initial visual effects based on checkbox state
+                applyToggleEffect(checkbox.id, checkbox.checked);
+            });
+            
+            // Reset button handler
+            document.getElementById('reset-toggles').addEventListener('click', function() {
+                // Set all checkboxes to checked
+                toggleCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                    checkbox.value = 'true';
+                    applyToggleEffect(checkbox.id, true);
+                });
+                
+                // Show temporary message
+                const originalText = this.textContent;
+                this.textContent = "All elements reset!";
+                setTimeout(() => this.textContent = originalText, 1000);
+            });
+        });
+    </script>
 </body>
 </html>
