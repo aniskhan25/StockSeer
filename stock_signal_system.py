@@ -622,6 +622,20 @@ class StockSignalSystem:
             recent_data = data.iloc[-lookback_days:].copy()  # Explicit copy to avoid view issues
             last_crossover_date = None  # Store the date of the most recent crossover
             
+            # Check if EMA_short is above EMA_long throughout the entire lookback period
+            ema_consistently_above = True
+            for idx, row in recent_data.iterrows():
+                short_ema = row['EMA_short']
+                long_ema = row['EMA_long']
+                if isinstance(short_ema, pd.Series):
+                    short_ema = short_ema.item()
+                if isinstance(long_ema, pd.Series):
+                    long_ema = long_ema.item()
+                
+                if short_ema <= long_ema:
+                    ema_consistently_above = False
+                    break
+            
             for date, row in recent_data.iterrows():
                 try:
                     # Extract EMA_Crossover as a scalar boolean
@@ -635,12 +649,21 @@ class StockSignalSystem:
                     
                     # Extract the bullish condition as a scalar boolean
                     bullish = row['Bullish'].item() if isinstance(row['Bullish'], pd.Series) else row['Bullish']
-                
-                    # Check buy signal conditions within the post-crossover window.
-                    # That is, if a crossover occurred recently (within the specified window),
-                    # and the remaining conditions (volume, bullish, price above EMA_short, and price above EMA_50) are met.
-                    if (last_crossover_date is not None and 
-                        (date - last_crossover_date).days <= post_crossover_window and
+                    
+                    # Extract EMA values
+                    short_ema = row['EMA_short']
+                    if isinstance(short_ema, pd.Series):
+                        short_ema = short_ema.item()
+                        
+                    long_ema = row['EMA_long']
+                    if isinstance(long_ema, pd.Series):
+                        long_ema = long_ema.item()
+                    
+                    # Check buy signal conditions:
+                    # 1. Either a recent crossover OR EMA_short consistently above EMA_long in the entire period
+                    # 2. Volume, bullish, and price conditions are met
+                    if (((last_crossover_date is not None and (date - last_crossover_date).days <= post_crossover_window) or 
+                        (ema_consistently_above and short_ema > long_ema)) and 
                         row['Volume'] >= self.min_volume and 
                         bullish and 
                         row['Close'] > row['EMA_short'] and
@@ -849,9 +872,29 @@ class StockSignalSystem:
                 if isinstance(atr, pd.Series):
                     atr = atr.item()
 
+                # Check if we're in a consistently bullish EMA trend (short above long)
+                # In backtest we can check the past N days directly
+                consistently_bullish_ema = False
+                if position == 0 and idx >= 5:  # Need at least 5 previous bars to check
+                    consistently_bullish_ema = True
+                    for i in range(1, 6):  # Check past 5 days
+                        prev_idx = idx - i
+                        if prev_idx < 0:
+                            break
+                        prev_short = data['EMA_short'].iloc[prev_idx]
+                        prev_long = data['EMA_long'].iloc[prev_idx]
+                        if isinstance(prev_short, pd.Series):
+                            prev_short = prev_short.item()
+                        if isinstance(prev_long, pd.Series):
+                            prev_long = prev_long.item()
+                        if prev_short <= prev_long:
+                            consistently_bullish_ema = False
+                            break
+                
                 # Now use these scalar values in your condition
+                # Buy if either a crossover event or a consistently bullish EMA trend
                 if (position == 0 and 
-                    ema_crossover and 
+                    (ema_crossover or (consistently_bullish_ema and ema_short > ema_long)) and
                     volume >= self.min_volume and 
                     bullish and 
                     close_price > ema_short and
