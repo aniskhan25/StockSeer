@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
+import pytz
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import time
@@ -82,7 +83,16 @@ class StockSignalSystem:
                 cached_data = pd.read_pickle(cache_file)
                 
                 # Check if cache is recent enough
-                cache_age = datetime.now() - cached_data.index[-2]
+                now = datetime.now()
+                last_date = cached_data.index[-2]
+                
+                # Convert timezone-naive datetime to timezone-aware
+                if last_date.tzinfo is not None and now.tzinfo is None:
+                    now = now.replace(tzinfo=last_date.tzinfo)
+                elif last_date.tzinfo is None and now.tzinfo is not None:
+                    last_date = last_date.replace(tzinfo=now.tzinfo)
+                
+                cache_age = now - last_date
 
                 max_age_days = 1 if self.data_resolution == '1d' else 1/6  # 4 hours for intraday data
                 
@@ -115,7 +125,7 @@ class StockSignalSystem:
         session = requests.Session(impersonate="chrome")
 
         # We'll use different date ranges based on resolution
-        end_date = datetime.now()
+        end_date = datetime.now(pytz.UTC)
         
         # Determine appropriate intervals based on resolution
         interval_lookup = {
@@ -146,7 +156,12 @@ class StockSignalSystem:
                 # No valid cache, download fresh data
                 logging.info(f"Downloading {ticker} data from {start_date} to {end_date} with {interval} resolution")
                 yfticker = yf.Ticker(ticker, session=session)
+                # Use date strings without time component to avoid timezone issues
                 data = yfticker.history(start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'))
+                
+                # Make sure the index doesn't have timezone info to match with datetime.now()
+                if not data.empty and data.index.tzinfo is not None:
+                    data.index = data.index.tz_localize(None)
 
                 # data = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False)
                 
