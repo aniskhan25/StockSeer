@@ -276,6 +276,46 @@ def refresh_watchlist():
     )
     
     flash('Watchlist data has been refreshed', 'success')
+
+    # Save CSV summary of tickers, resistance, support, ATR, volume, last signal
+    try:
+        summary_data = []
+
+        for ticker in system.tickers:
+            res_levels = system.resistance_levels.get(ticker, [])
+            sup_levels = system.support_levels.get(ticker, [])
+            atrs = getattr(system, 'atr_levels', {}).get(ticker, {})
+            data = system.stock_data.get(ticker)
+
+            last_resistance = res_levels[0] if res_levels else None
+            last_support = sup_levels[0] if sup_levels else None
+
+            atr_value = atrs.get('atr', None)
+            atr_full_up = atrs.get('atr_full_up', None)
+            atr_full_down = atrs.get('atr_full_down', None)
+
+            most_recent_volume = data['Volume'].iloc[-1] if data is not None and not data.empty else None
+
+            ticker_signals = [s for s in system.signals if s['ticker'] == ticker]
+            last_signal = ticker_signals[-1]['type'] if ticker_signals else None
+
+            summary_data.append({
+                'Ticker': ticker,
+                'LastResistance': last_resistance,
+                'LastSupport': last_support,
+                'ATR': atr_value,
+                'ATR_Full_Up': atr_full_up,
+                'ATR_Full_Down': atr_full_down,
+                'MostRecentVolume': most_recent_volume,
+                'LastSignal': last_signal
+            })
+
+        summary_df = pd.DataFrame(summary_data)
+        summary_df.to_csv("system_snapshot.csv", index=False)
+        logging.info("System snapshot saved to system_snapshot.csv")
+    except Exception as e:
+        logging.error(f"Error saving system snapshot CSV: {e}", exc_info=True)
+
     return redirect(url_for('index'))
 
 
