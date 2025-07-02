@@ -53,6 +53,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Generate Timestamp Tag
+        id: timestamp
+        run: |
+          export TZ=Europe/Berlin
+          echo "tag=$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
+
       # Extract metadata (tags, labels) for Docker
       # https://github.com/docker/metadata-action
       - name: Extract Docker metadata
@@ -61,7 +67,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value={{date 'Europe/Berlin' +%Y%m%d-%H%M%S}}
+            type=raw,value=${{ steps.timestamp.outputs.tag }}
             type=raw,value=latest
 
       # Build and push Docker image with Buildx (don't push on PR)
