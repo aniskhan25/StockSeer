@@ -94,7 +94,8 @@ class StockSignalSystem:
                 
                 cache_age = now - last_date
 
-                max_age_days = 1 if self.data_resolution == '1d' else 1/6  # 4 hours for intraday data
+                # Make cache more lenient - use cached data up to 7 days old to avoid yfinance issues
+                max_age_days = 7 if self.data_resolution == '1d' else 7  # Allow up to 7 days for all resolutions
                 
                 resolution_seconds = 86400 if self.data_resolution == '1d' else \
                                    14400 if self.data_resolution == '4h' else \
@@ -306,6 +307,17 @@ class StockSignalSystem:
                     logging.warning(f"No data available for {ticker}")
             except Exception as e:
                 logging.error(f"Error fetching data for {ticker}: {e}")
+                # Try to use cached data even if it's old as a fallback
+                try:
+                    cache_file = self._get_cache_filename(ticker)
+                    if os.path.exists(cache_file):
+                        cached_data = pd.read_pickle(cache_file)
+                        self.stock_data[ticker] = cached_data
+                        logging.warning(f"Using old cached data for {ticker} as fallback")
+                    else:
+                        logging.warning(f"No cached data available for {ticker}")
+                except Exception as cache_error:
+                    logging.error(f"Failed to load cached data for {ticker}: {cache_error}")
 
     
     def _detect_resistance_levels(self, data, lookback=200, min_touches=2, proximity_percent=0.03):

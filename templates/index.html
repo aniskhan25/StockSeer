@@ -7,20 +7,74 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --color-primary: #2563eb;
-            --color-primary-dark: #1e40af;
-            --color-success: #059669;
-            --color-success-light: #d1fae5;
-            --color-danger: #e11d48;
-            --color-danger-light: #ffe4e6;
-            --color-background: #f8fafc;
-            --color-card: #ffffff;
-            --color-text: #0f172a;
-            --color-text-secondary: #64748b;
-            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
-            --card-shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            --border-radius: 8px;
-            --transition-ease: all 0.3s ease;
+            /* TradingView Color Palette */
+            --color-aqua: #00BCD4;
+            --color-black: #131722;
+            --color-blue: #2196F3;
+            --color-fuchsia: #E040FB;
+            --color-gray: #363A45;
+            --color-green: #26A69A;
+            --color-lime: #CDDC39;
+            --color-maroon: #800000;
+            --color-navy: #001F3F;
+            --color-olive: #808000;
+            --color-orange: #FF9800;
+            --color-purple: #9C27B0;
+            --color-red: #EF5350;
+            --color-silver: #C0C0C0;
+            --color-teal: #009688;
+            --color-white: #FFFFFF;
+            --color-yellow: #FFEB3B;
+            
+            /* Primary Theme Colors */
+            --color-primary: var(--color-blue);
+            --color-primary-dark: #1565C0;
+            --color-success: var(--color-green);
+            --color-success-light: #E0F2F1;
+            --color-danger: var(--color-red);
+            --color-danger-light: #FFEBEE;
+            
+            /* Background & Surface Colors */
+            --color-background: var(--color-white);
+            --color-card: var(--color-white);
+            --color-sidebar: #F5F5F5;
+            --color-border: #E0E0E0;
+            --color-grid: #F0F0F0;
+            
+            /* Text Colors */
+            --color-text: #000000;
+            --color-text-secondary: #757575;
+            --color-text-muted: #B2B5BE;
+            
+            /* Chart Colors */
+            --color-up-trend: var(--color-green);
+            --color-down-trend: var(--color-red);
+            --color-volume-up: rgba(38, 166, 154, 0.8);
+            --color-volume-down: rgba(239, 83, 80, 0.8);
+            
+            /* Layout Properties */
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+            --card-shadow-hover: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+            --border-radius: 4px;
+            --transition-ease: all 0.2s ease;
+            
+            /* Typography */
+            --font-family-default: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-family-mono: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+        }
+        
+        /* Dark Theme Variables */
+        [data-theme="dark"] {
+            --color-background: #131722;
+            --color-card: #1E2329;
+            --color-sidebar: #242731;
+            --color-border: #2A2E39;
+            --color-grid: #242731;
+            --color-text: var(--color-white);
+            --color-text-secondary: #B2B5BE;
+            --color-text-muted: #787B86;
+            --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+            --card-shadow-hover: 0 4px 6px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
         * {
@@ -30,18 +84,58 @@
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: var(--font-family-default);
             background-color: var(--color-background);
             color: var(--color-text);
-            line-height: 1.5;
+            line-height: 1.4;
             -webkit-font-smoothing: antialiased;
-            padding: 2rem 0;
+            -moz-osx-font-smoothing: grayscale;
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+        }
+        
+        /* Main Layout Structure */
+        .app-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 280px;
+            background-color: var(--color-sidebar);
+            border-right: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            position: fixed;
+            left: 0;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        
+        .main-content {
+            flex: 1;
+            margin-left: 280px;
+            background-color: var(--color-background);
+        }
+        
+        .top-bar {
+            background-color: var(--color-card);
+            border-bottom: 1px solid var(--color-border);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
         
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1.5rem;
+            padding: 2rem;
         }
         
         .dashboard-header {
@@ -51,20 +145,90 @@
             margin-bottom: 2rem;
         }
         
+        /* Logo & Branding */
         .logo {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             font-weight: 700;
             color: var(--color-primary);
             text-decoration: none;
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            margin-bottom: 1rem;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--color-border);
         }
         
         .logo svg {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+        
+        /* Navigation */
+        .nav-menu {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            flex: 1;
+        }
+        
+        .nav-item {
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            color: var(--color-text-secondary);
+            text-decoration: none;
+            border-radius: var(--border-radius);
+            transition: var(--transition-ease);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        
+        .nav-link:hover {
+            background-color: var(--color-border);
+            color: var(--color-text);
+        }
+        
+        .nav-link.active {
+            background-color: var(--color-primary);
+            color: var(--color-white);
+        }
+        
+        .nav-link svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+        
+        /* Theme Toggle */
+        .theme-toggle {
+            background: none;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 0.5rem;
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            transition: var(--transition-ease);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .theme-toggle:hover {
+            background-color: var(--color-border);
+            color: var(--color-text);
+        }
+        
+        .theme-toggle svg {
+            width: 18px;
+            height: 18px;
             fill: currentColor;
         }
         
@@ -464,7 +628,35 @@
             min-width: auto;
         }
         
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 260px;
+            }
+            
+            .main-content {
+                margin-left: 260px;
+            }
+        }
+        
         @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+            
             .stats-grid {
                 grid-template-columns: 1fr;
             }
@@ -490,18 +682,99 @@
                 align-items: stretch;
             }
         }
+        
+        @media (max-width: 480px) {
+            .top-bar {
+                padding: 1rem;
+            }
+            
+            .container {
+                padding: 1rem 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="dashboard-header">
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
             <a href="/" class="logo">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M2 12h2v9H2v-9zm3 2h2v7H5v-7zm3-4h2v11H8V10zm3 2h2v9h-2v-9zm3-4h2v13h-2V8zm3 4h2v9h-2v-9z"/>
                 </svg>
                 StockSeer
             </a>
-        </div>
+            
+            <nav>
+                <ul class="nav-menu">
+                    <li class="nav-item">
+                        <a href="/" class="nav-link active">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M13 6l-4-4h16v4zm-6 4L3 6v16h4zM3 6l4 4h10l4-4z"/>
+                            </svg>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/tradingview_chart" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 3v18h18"/>
+                                <path d="M7 12l4-4 4 4 6-6"/>
+                            </svg>
+                            Professional Chart
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/plot_single" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                                <line x1="8" y1="21" x2="16" y2="21" />
+                                <line x1="12" y1="17" x2="12" y2="21" />
+                            </svg>
+                            Basic Analysis
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/plot" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                <line x1="8" y1="3" x2="8" y2="21" />
+                                <line x1="3" y1="9" x2="21" y2="9" />
+                                <line x1="3" y1="15" x2="21" y2="15" />
+                            </svg>
+                            Compare Stocks
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Dark Mode">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="moon-icon">
+                    <path d="M21.75 12.79A9 9 0 1112.21 2.25 7 7 0 0021.75 12.79z"/>
+                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="sun-icon" style="display: none;">
+                    <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"/>
+                </svg>
+            </button>
+        </aside>
+        
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <div class="top-bar">
+                <div class="dashboard-header">
+                    <h1>Trading Dashboard</h1>
+                </div>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <a href="{{ url_for('refresh_watchlist') }}" class="btn btn-outline">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/>
+                        </svg>
+                        Refresh Data
+                    </a>
+                </div>
+            </div>
+            
+            <div class="container">
         
         <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -755,10 +1028,51 @@
                 </div>
             </form>
         </div>
+            </div>
+        </main>
     </div>
     
     <script>
-        // No toggle functionality needed as all sections are now always visible
+        // Theme Toggle Functionality
+        function toggleTheme() {
+            const body = document.body;
+            const moonIcon = document.querySelector('.moon-icon');
+            const sunIcon = document.querySelector('.sun-icon');
+            
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+                moonIcon.style.display = 'block';
+                sunIcon.style.display = 'none';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                moonIcon.style.display = 'none';
+                sunIcon.style.display = 'block';
+            }
+        }
+        
+        // Initialize theme on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedTheme = localStorage.getItem('theme');
+            const moonIcon = document.querySelector('.moon-icon');
+            const sunIcon = document.querySelector('.sun-icon');
+            
+            if (savedTheme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                moonIcon.style.display = 'none';
+                sunIcon.style.display = 'block';
+            } else {
+                moonIcon.style.display = 'block';
+                sunIcon.style.display = 'none';
+            }
+        });
+        
+        // Mobile sidebar toggle (for future mobile menu implementation)
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('open');
+        }
     </script>
 </body>
 </html>
