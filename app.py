@@ -369,7 +369,7 @@ def plot_single():
             return redirect(url_for('index'))
     
     # Use the TradingView template instead of Plotly
-    return render_template('plot_single.html',
+    return render_template('tradingview_chart.html',
                           selected_ticker=selected_ticker,
                           tickers=watchlist,
                           days=days,
